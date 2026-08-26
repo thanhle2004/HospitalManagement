@@ -1,7 +1,7 @@
 # Hồ sơ khảo sát hệ thống Hospital Management
 
 Ngày khảo sát: **2026-08-27**  
-Phạm vi: `Backend/` và `Frontend/` trong workspace hiện tại. Đây là **Giai đoạn 1 — chỉ khảo sát và lập kế hoạch**, chưa refactor ứng dụng, chưa chạy migration, chưa kết nối hay thay đổi database production.
+Phạm vi: `Backend/` và `Frontend/` trong workspace hiện tại. Giai đoạn khảo sát đã hoàn tất; **Slice 0 safety harness đã được triển khai local ngày 2026-08-27**. Không có migration/DDL nào được chạy trên database production.
 
 ## Danh mục tài liệu
 
@@ -19,6 +19,11 @@ Phạm vi: `Backend/` và `Frontend/` trong workspace hiện tại. Đây là **
 | [threat-model.md](threat-model.md) | Threat model cho các luồng nhạy cảm được yêu cầu |
 | [migration-plan.md](migration-plan.md) | Kế hoạch migration theo vertical slice, tiêu chí nghiệm thu và rollback |
 | [business-questions.md](business-questions.md) | Câu hỏi nghiệp vụ/dữ liệu cần xác nhận trước Giai đoạn 2 |
+| [slice-0-implementation.md](slice-0-implementation.md) | Thay đổi Slice 0, bằng chứng local, checksum, verification và gate production còn mở |
+
+## Cập nhật sau khảo sát
+
+Slice 0 đã xử lý Git baseline, request ID/log redaction, CORS allowlist, Swagger production policy, health/readiness, DB inventory/reconciliation, draft baseline, backup/restore rehearsal, CI và characterization test. Xem kết quả cùng các giới hạn production tại [slice-0-implementation.md](slice-0-implementation.md).
 
 ## Kết luận điều hành
 
@@ -28,12 +33,12 @@ Tuy nhiên đây chưa phải một Hospital Information System đầy đủ. Ph
 
 Các blocker trước khi coi hệ thống sẵn sàng vận hành thật:
 
-1. Chưa có dump/schema inventory từ database đích; chỉ có Prisma schema và hai migration trong source.
+1. Đã inventory database local; vẫn chưa có dump/schema inventory từ database production đích.
 2. Migration thứ hai có thao tác phá hủy dữ liệu mẫu (`DROP TABLE`, đổi PK, bỏ cột bắt buộc); tuyệt đối không replay lên database legacy có dữ liệu.
-3. OTP và số điện thoại đang được log plaintext; token staff/refresh token lưu ở `localStorage`; CORS và WebSocket origin mở rộng.
+3. OTP/password log và CORS/WebSocket origin đã được xử lý ở Slice 0; token staff/refresh token vẫn lưu ở `localStorage` và thuộc Slice 1.
 4. Khóa user/device không vô hiệu access token đã cấp; authorization mới ở mức role, chưa có phạm vi resource đầy đủ.
 5. State machine còn trạng thái được khai báo nhưng không có đường chuyển; audit log chỉ bao phủ hai thao tác đổi thứ tự hàng đợi.
-6. Test hiện chỉ có 19 unit test cho thuật toán graph và sinh OTP; không có integration/API/E2E/authorization/migration test.
+6. Đã có 31 unit/characterization test và DB/runtime smoke; vẫn thiếu authorization matrix và E2E nghiệp vụ đầy đủ.
 7. Frontend chỉ có 8 màn hình thực, Doctor là placeholder, Patient portal và phần lớn vận hành khám chưa có UI.
 
-Quyết định đề xuất: **duyệt Phase 1, sau đó làm Slice 0 “baseline + safety harness” trước mọi chức năng mới**.
+Quyết định hiện tại: **Slice 0 đã triển khai local; chỉ chuyển Slice 1 sau khi các gate production và câu hỏi nghiệp vụ liên quan có owner phê duyệt**.

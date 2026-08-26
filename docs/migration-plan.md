@@ -13,6 +13,8 @@
 
 ### Slice 0 — Baseline, safety harness và production blockers
 
+**Cập nhật 2026-08-27:** đã triển khai và kiểm chứng local; bằng chứng và gate production còn mở tại [slice-0-implementation.md](slice-0-implementation.md).
+
 **Phạm vi:** Git/monorepo decision, inventory DB thật, backup/restore, baseline migration, CI tối thiểu, logging/redaction/request ID, test harness.
 
 - Phân tích cũ: chụp `information_schema`, `_prisma_migrations`, record counts, routines/triggers/events, slow queries và drift so Prisma.

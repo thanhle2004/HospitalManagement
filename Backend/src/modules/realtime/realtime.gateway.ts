@@ -38,7 +38,7 @@ const doctorRoomChannel = (roomId: number) => `room:${roomId}`;
  * thật (REST response shape và WS payload shape) cho cùng 1 dữ liệu.
  */
 @Injectable()
-@WebSocketGateway({ cors: { origin: true, credentials: true } })
+@WebSocketGateway()
 export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
@@ -84,15 +84,15 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     );
     if (patientPayload) {
       await client.join(patientRoom(patientPayload.sub));
-      this.logger.log(`Patient ${patientPayload.sub} kết nối WebSocket`);
+      this.logger.log('Patient WebSocket connected');
       return;
     }
 
     this.rejectConnection(client, 'Token không hợp lệ hoặc đã hết hạn');
   }
 
-  handleDisconnect(client: Socket): void {
-    this.logger.debug(`Client ngắt kết nối: ${client.id}`);
+  handleDisconnect(_client: Socket): void {
+    this.logger.debug('WebSocket client disconnected');
   }
 
   /** Client tự gọi lại nếu ca trực Doctor đổi mà không muốn reconnect toàn bộ socket */
@@ -134,7 +134,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     if (payload.role === UserRole.ADMIN) {
       await client.join(ADMIN_ROOM);
-      this.logger.log(`Admin ${payload.email} kết nối WebSocket`);
+      this.logger.log('Admin WebSocket connected');
       return;
     }
 
@@ -146,7 +146,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
         await client.join(doctorRoomChannel(roomId));
       }
       this.logger.log(
-        `Doctor ${payload.email} kết nối WebSocket (${roomIds.length} phòng đang trực)`,
+        `Doctor WebSocket connected (${roomIds.length} active rooms)`,
       );
     }
   }

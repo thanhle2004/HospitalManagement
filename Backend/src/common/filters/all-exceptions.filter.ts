@@ -7,7 +7,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import {
+  getRequestId,
+  RequestWithContext,
+} from '../http/request-context';
+import { redactSensitiveText } from '../utils/redact-sensitive.util';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -16,7 +21,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
+    const request = ctx.getRequest<RequestWithContext>();
+    const requestId = getRequestId(request);
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Đã xảy ra lỗi không xác định';
@@ -64,15 +70,27 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
+      const errorName =
+        exception instanceof Error ? exception.name : 'UnknownError';
+      const developmentMessage =
+        process.env.NODE_ENV !== 'production' && exception instanceof Error
+          ? redactSensitiveText(exception.message)
+          : undefined;
       this.logger.error(
-        `${request.method} ${request.url}`,
-        exception instanceof Error ? exception.stack : String(exception),
+        JSON.stringify({
+          event: 'unhandled_exception',
+          requestId,
+          method: request.method,
+          errorName,
+          ...(developmentMessage ? { message: developmentMessage } : {}),
+        }),
       );
     }
 
     response.status(status).json({
       success: false,
       statusCode: status,
+      requestId,
       path: request.url,
       timestamp: new Date().toISOString(),
       message,

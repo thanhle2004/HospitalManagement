@@ -88,3 +88,11 @@ Mức độ: **P0** chặn production/migration; **P1** phải xử lý trước
 5. Characterization test cho patient-flow hiện tại đạt trên clone.
 6. Quyết định business cho state machine/cancel/reroute/no-show.
 7. Data ownership và permission matrix theo role/scope được ký.
+
+## 4. Cập nhật mitigation Slice 0 — 2026-08-27
+
+- R-03: đã bỏ log OTP/phone và password seed; mock SMS không còn lộ mã.
+- R-06: backup có SHA-256 và restore rehearsal local pass; RPO/RTO production vẫn chưa có owner.
+- R-10, R-20, R-21, R-22, R-23: đã có CORS allowlist HTTP/Socket.IO, migration job riêng, structured request log/request ID, Helmet/Swagger policy, Git baseline/.gitignore/Gitleaks.
+- R-05: tăng từ 19 lên 31 test với characterization cho auth/visit/check-in/doctor, cộng DB/runtime smoke; E2E/authorization đầy đủ vẫn mở.
+- Dependency advisory mới được ghi nhận: backend production tree 18 advisory (4 high), frontend 1 high. Nâng major NestJS/Swagger chưa được thực hiện vì ngoài phê duyệt Slice 0.

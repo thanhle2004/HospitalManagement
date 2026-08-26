@@ -34,14 +34,14 @@ src/
       users.service.ts
       users.controller.ts
     health/                         # health check qua @nestjs/terminus
-      health.controller.ts          # GET /health (public)
+      health.controller.ts          # GET /health/live và /health/ready (public)
     patient-auth/                   # Phase 2 — JWT auth cho Patient (phone + OTP)
       dto/                          # RequestOtpDto, VerifyRegisterDto, VerifyLoginDto...
       guards/patient-jwt-auth.guard.ts    # KHÔNG global — gắn thủ công @UseGuards()
       strategies/patient-jwt.strategy.ts  # strategy tên 'patient-jwt', secret RIÊNG với Staff
       decorators/current-patient.decorator.ts
       repositories/                 # PatientOtpRepository, PatientSessionRepository
-      otp-sender.service.ts         # mock gửi SMS (log console) — thay bằng gateway thật sau
+      otp-sender.service.ts         # mock gửi SMS, không log OTP/phone — thay bằng gateway thật sau
       utils/generate-otp.util.ts    # sinh OTP bằng crypto.randomInt (CSPRNG)
       patient-auth.service.ts       # request-otp / verify (register+login) / refresh / logout
       patient-auth.controller.ts    # POST /patient-auth/...
@@ -57,18 +57,20 @@ prisma/
 ```
 
 ### Response format
-M��i response thành công đi qua `TransformInterceptor`:
+Mỗi response thành công đi qua `TransformInterceptor`:
 ```json
-{ "success": true, "statusCode": 200, "timestamp": "...", "data": { ... } }
+{ "success": true, "statusCode": 200, "requestId": "...", "timestamp": "...", "data": { ... } }
 ```
-M��i lỗi đi qua `AllExceptionsFilter`:
+Mỗi lỗi đi qua `AllExceptionsFilter`:
 ```json
-{ "success": false, "statusCode": 404, "path": "/users/doctors/xxx", "timestamp": "...", "message": "..." }
+{ "success": false, "statusCode": 404, "requestId": "...", "path": "/users/doctors/xxx", "timestamp": "...", "message": "..." }
 ```
 
 ### Health check
 ```
-GET /health   →  { "status": "ok", "info": { "database": { "status": "up" } }, ... }
+GET /health/live   → process liveness, không phụ thuộc database
+GET /health/ready  → readiness có kiểm tra MySQL
+GET /health        → alias tương thích của readiness
 ```
 
 ### Swagger / test API
@@ -76,7 +78,7 @@ Chạy `npm run start:dev` xong, mở trình duyệt:
 ```
 http://localhost:3000/docs
 ```
-Có nút **Authorize** (góc trên phải) để dán `accessToken` — sau đó test được tất cả route cần JWT ngay trên UI, không cần curl/Postman.
+Có nút **Authorize** (góc trên phải) để dán `accessToken` — sau đó test được tất cả route cần JWT ngay trên UI, không cần curl/Postman. Swagger mặc định tắt khi `NODE_ENV=production`; chỉ bật có chủ đích bằng `SWAGGER_ENABLED=true` sau reverse-proxy/VPN access control.
 
 ### Validation bằng Zod
 Toàn bộ DTO dùng `zod` schema + `createZodDto` (thư viện `nestjs-zod`), KHÔNG còn dùng `class-validator`/`class-transformer`:
@@ -138,7 +140,7 @@ Không có endpoint đăng ký Admin (đúng theo spec — chỉ Admin mới t�
 npm run prisma:seed
 ```
 
-M��c định tạo `admin@hospital.local` / `ChangeMe123!` (đổi qua `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` trong `.env` nếu muốn). **Đổi mật khẩu ngay** sau khi login lần đầu qua `POST /users/me/change-password`.
+Mặc định tạo `admin@hospital.local` / `ChangeMe123!` (đổi qua `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` trong `.env` nếu muốn). Credential không được ghi ra log; **đổi mật khẩu ngay** sau khi login lần đầu qua `POST /users/me/change-password`.
 
 ## 5. Chạy server
 
@@ -194,16 +196,16 @@ curl -X POST http://localhost:3000/users/me/change-password \
 
 ## 7. Test nhanh API Patient Auth (Phase 2)
 
-OTP được **log ra console** của server (chưa nối SMS gateway thật — xem `otp-sender.service.ts`), copy mã từ log terminal ra dùng.
+Mock SMS hiện **không log OTP hoặc số điện thoại**. Để chạy manual E2E, cấu hình SMS sandbox hoặc inject test sender riêng; không khôi phục việc copy OTP từ log.
 
 ```bash
 # 1. Đăng ký — bước 1: gửi OTP
 curl -X POST http://localhost:3000/patient-auth/register/request-otp \
   -H "Content-Type: application/json" \
   -d '{"phone":"0912345678"}'
-# → xem log server: "[MOCK SMS] Gửi OTP "123456" tới số điện thoại 0912345678"
+# → provider sandbox phải chuyển OTP; mock mặc định chỉ ghi nhận dispatch không chứa secret
 
-# 2. Đăng ký — bước 2: xác thực OTP + cung cấp hồ sơ cá nhân (thay 123456 bằng mã thật từ log)
+# 2. Đăng ký — bước 2: xác thực OTP + cung cấp hồ sơ cá nhân
 curl -X POST http://localhost:3000/patient-auth/register/verify \
   -H "Content-Type: application/json" \
   -d '{"phone":"0912345678","otp":"123456","fullName":"Nguyễn Văn A","address":"TP.HCM"}'
@@ -242,43 +244,62 @@ curl -X POST http://localhost:3000/patient-auth/logout \
 npm run prisma:studio
 ```
 
-## Testing (Phase 11)
+## Testing và safety gate
 
-Unit test cho các thuật toán lõi — thuần TypeScript, KHÔNG cần database, chạy được ngay cả khi chưa `prisma generate`:
+Unit/characterization test hiện không cần database; DB smoke/reconciliation chạy riêng trên MySQL:
 
 ```powershell
 npm test              # chạy 1 lần
+npm run test:ci       # deterministic, run-in-band cho CI
 npm run test:watch    # chạy lại tự động khi sửa file
 npm run test:cov      # kèm coverage report
+npm run typecheck
+npm run lint
 ```
 
 Đã test:
 - `graph.util.ts` — `topologicalSort` (Kahn's algorithm), `wouldCreateCycle`, `findReadyNodes`: chuỗi tuyến tính, node độc lập, đúng ví dụ trong spec §6 (A→C, B→E, D), phát hiện cycle trực tiếp/gián tiếp, multi-dependency (1 node chờ ≥2 tiền nhiệm)
 - `generate-otp.util.ts` — đúng độ dài, không lặp cố định
+- request-id validation và sensitive-text redaction
+- Staff login/token persistence
+- Visit create/copy flow/initial routing queue
+- QR check-in transaction
+- Doctor start-exam transaction/room claim
 
-Đây là 2 file **duy nhất** trong toàn bộ project chạy full test được ở môi trường mình build project này — mọi phần còn lại phụ thuộc `@prisma/client` đã generate nên chỉ verify được bằng `tsc --noEmit`, chưa chạy runtime thật. Bạn nên bổ sung thêm test cho các Service khác (dùng `@nestjs/testing` + mock Repository) khi có điều kiện chạy trên máy có mạng.
+Tổng local hiện tại: **8 suites, 31 tests**. GitHub Actions còn chạy Prisma validate/migration/drift/reconciliation, build và `/health/live` + `/health/ready` smoke.
 
-**Lưu ý về `npm run test:cov`:** lệnh này cố gắng instrument (đo coverage) TOÀN BỘ file trong `src/`, kể cả những file chưa có test — nên nếu chạy ở môi trường chưa `prisma generate` được, bạn sẽ thấy lại đúng các lỗi cascading quen thuộc (`Module '@prisma/client' has no exported member...`) xuất hiện trong log, dù 19/19 test **vẫn pass bình thường** (2 dòng `Test Suites: 2 passed` / `Tests: 19 passed` ở cuối log mới là kết quả thật). Trên máy bạn (đã `prisma generate` xong) sẽ không gặp vấn đề này.
+## Database safety
+
+```powershell
+npm run db:inventory       # metadata + count, không đọc row data
+npm run db:reconcile       # 20 invariant checks
+npm run db:drift:check     # live schema vs Prisma, read-only
+npm run db:baseline:draft  # sinh draft SQL; không apply/resolve migration
+npm run db:backup          # backup + SHA-256 + count manifest
+```
+
+Không replay hai migration lịch sử lên database legacy/production có sẵn. Xem `prisma/baseline/README.md` và `../docs/slice-0-implementation.md`.
 
 ## Docker (Phase 11)
 
 ```powershell
 Copy-Item .env.example .env
-# → sửa các secret trong .env như bình thường (DATABASE_URL không cần sửa,
-#   docker-compose.yml tự ghi đè để trỏ đúng service "mysql" trong mạng Docker)
+# → đặt MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD và DATABASE_URL_DOCKER
 
-docker-compose up --build
+docker compose up -d mysql
+docker compose --profile operations run --rm migrate
+docker compose up -d app
 ```
 
-Lên đầy đủ 2 container: `mysql` (data lưu ở volume `mysql_data`, healthcheck trước khi cho `app` start) và `app` (tự chạy `prisma migrate deploy` rồi mới start server). Server chạy tại `http://localhost:3000`, Swagger tại `http://localhost:3000/docs`.
+Migration là job riêng có approval; API **không** tự chạy migration lúc startup. Server chạy tại `http://localhost:3000`; Swagger chỉ có khi `SWAGGER_ENABLED=true`.
 
 **Chỉ cần MySQL, chạy code trên máy host (dev có hot-reload)?**
 ```powershell
-docker-compose up mysql -d
+docker compose up -d mysql
 npm run start:dev
 ```
 
-Xem `Dockerfile` để biết chi tiết — multi-stage build, có ghi chú rõ trade-off giữa việc copy nguyên `node_modules` (kèm `prisma` CLI để chạy migration lúc container start) so với bản "chỉ cài production deps" gọn hơn nhưng thiếu CLI.
+Xem `Dockerfile` và service `migrate` trong `docker-compose.yml` để biết ranh giới deploy.
 
 ## Design pattern áp dụng
 - **Repository Pattern** — mọi câu gọi Prisma nằm trong `*.repository.ts`. Service không import `PrismaService.<model>` trực tiếp.
@@ -304,7 +325,7 @@ Xem `Dockerfile` để biết chi tiết — multi-stage build, có ghi chú rõ
 11. ~~Unit test thuật toán lõi + Docker~~ ✅ (Phase này — hoàn tất toàn bộ roadmap)
 
 ### Gợi ý cho bước tiếp theo (ngoài roadmap gốc)
-- Test toàn bộ luồng thật trên máy có mạng (`prisma generate` chạy được) — sandbox lúc build project này bị chặn tải engine binary nên chưa chạy runtime thật được, chỉ verify bằng `tsc --noEmit` + unit test cho phần thuần logic.
-- Bổ sung integration test (`@nestjs/testing` + database test riêng) cho các Service quan trọng: `RoutingEngineService`, `CheckInService`, `DoctorService`.
-- SMS gateway thật thay `OtpSenderService` (đang mock, log ra console).
-- CI/CD: GitHub Actions chạy `tsc --noEmit` + `npm test` + build Docker image mỗi lần push.
+- Cấp production schema-only dump/anonymized clone để lặp lại inventory, reconciliation và restore rehearsal.
+- Hoàn tất authorization/E2E/concurrency test còn thiếu.
+- SMS gateway sandbox/thật thay `OtpSenderService` mock mà không log secret.
+- Xử lý dependency advisory qua kế hoạch upgrade riêng có regression test.

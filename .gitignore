@@ -10,6 +10,7 @@
 **/.next/
 **/coverage/
 **/*.tsbuildinfo
+**/next-env.d.ts
 
 # Database artifacts must stay outside version control
 artifacts/

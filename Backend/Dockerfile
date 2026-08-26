@@ -17,9 +17,8 @@ FROM node:20-alpine AS production
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Copy nguyên node_modules đã build ở stage 1 (bao gồm cả `prisma` CLI —
-# cần thiết để chạy `prisma migrate deploy` lúc container khởi động; nếu
-# dùng --omit=dev ở đây thì thiếu prisma CLI, chỉ còn @prisma/client).
+# Copy nguyên node_modules đã build ở stage 1. Migration được chạy bằng
+# deployment job riêng, không tự chạy trong startup của API.
 # Đánh đổi: image nặng hơn 1 bản "chỉ production deps" thuần tuý, nhưng
 # đơn giản và chắc chắn chạy được — hợp lý cho quy mô đồ án.
 COPY --from=builder /app/node_modules ./node_modules
@@ -29,5 +28,4 @@ COPY --from=builder /app/package*.json ./
 
 EXPOSE 3000
 
-# Chạy migration (idempotent — bỏ qua migration đã áp dụng) trước khi start server
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+CMD ["node", "dist/main"]

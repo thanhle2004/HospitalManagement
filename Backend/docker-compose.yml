@@ -4,10 +4,10 @@ services:
     container_name: hospital-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: hospital_management
-      MYSQL_USER: hospital
-      MYSQL_PASSWORD: hospital_password
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in Backend/.env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-hospital_management}
+      MYSQL_USER: ${MYSQL_USER:-hospital}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in Backend/.env}
     ports:
       - '3306:3306'
     volumes:
@@ -32,9 +32,22 @@ services:
     env_file:
       - .env
     environment:
-      # Ghi đè DATABASE_URL trong .env (thường trỏ "localhost" cho dev
-      # ngoài Docker) — bên trong mạng Docker phải trỏ đúng tên service "mysql"
-      DATABASE_URL: 'mysql://hospital:hospital_password@mysql:3306/hospital_management'
+      DATABASE_URL: ${DATABASE_URL_DOCKER:?Set DATABASE_URL_DOCKER in Backend/.env}
+
+  migrate:
+    profiles: ['operations']
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL_DOCKER:?Set DATABASE_URL_DOCKER in Backend/.env}
+    command: ['npx', 'prisma', 'migrate', 'deploy']
+    restart: 'no'
 
 volumes:
   mysql_data:

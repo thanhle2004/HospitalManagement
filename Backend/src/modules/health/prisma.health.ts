@@ -10,9 +10,9 @@ export class PrismaHealthIndicator {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return { [key]: { status: 'up' } };
-    } catch (error) {
-      throw new HealthCheckError('Prisma check failed', {
-        [key]: { status: 'down', message: (error as Error).message },
+    } catch {
+      throw new HealthCheckError('Database readiness check failed', {
+        [key]: { status: 'down' },
       });
     }
   }

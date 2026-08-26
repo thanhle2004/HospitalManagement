@@ -32,7 +32,7 @@ async function seedAdmin() {
     },
   });
 
-  console.log('✅ Admin:', admin.email, `(mật khẩu: ${adminPassword})`);
+  console.log('✅ Admin demo account created (credentials omitted from logs)');
   return admin;
 }
 
@@ -108,7 +108,7 @@ async function main() {
 
   const doctorA = await seedDoctor('bs.a@hospital.local', 'BS. Nguyễn Văn A');
   const doctorB = await seedDoctor('bs.b@hospital.local', 'BS. Trần Thị B');
-  console.log('✅ Doctor:', doctorA.email, '/', doctorB.email, '(mật khẩu: Doctor123!)');
+  console.log('✅ Doctor demo accounts created (credentials omitted from logs)');
 
   const roomTypeInternal = await seedRoomType('Khám Nội', 15);
   const roomTypeEye = await seedRoomType('Khám Mắt', 10);

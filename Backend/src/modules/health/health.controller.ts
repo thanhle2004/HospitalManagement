@@ -13,11 +13,27 @@ export class HealthController {
   ) {}
 
   @Public()
+  @Get('live')
+  live() {
+    return { status: 'ok' as const };
+  }
+
+  @Public()
+  @Get('ready')
+  @HealthCheck()
+  ready() {
+    return this.databaseReadiness();
+  }
+
+  // Compatibility endpoint. New infrastructure should use /health/ready.
+  @Public()
   @Get()
   @HealthCheck()
   check() {
-    return this.health.check([
-      () => this.prismaHealth.isHealthy('database'),
-    ]);
+    return this.databaseReadiness();
+  }
+
+  private databaseReadiness() {
+    return this.health.check([() => this.prismaHealth.isHealthy('database')]);
   }
 }

@@ -5,7 +5,14 @@
 - Prisma schema: `Backend/prisma/schema.prisma` — 24 model, 13 enum.
 - Migration history: `20260729074906_init` và `20260730025630_init`.
 - Runtime query: các file `*.repository.ts`.
-- Chưa kết nối database thật. Kết luận “không có view/procedure/trigger/event” chỉ đúng với migration/source được cung cấp; phải chạy inventory trên bản sao production để xác nhận.
+- Đã kết nối và chạy inventory read-only trên database local MySQL 8.0.41 ngày 2026-08-27. Kết quả local: 24 bảng domain + `_prisma_migrations`, không có view/procedure/trigger/event, schema không drift.
+- Chưa có clone/dump production; kết quả local không thay thế inventory production.
+
+### 1.1 Snapshot local đã kiểm chứng
+
+- Inventory checksum: `7314a6f3d1d53ec0568211af7e5b1298c26fdde9f99e749c84860910dc022b06`.
+- 20/20 reconciliation checks pass, checksum `15ac07446ece354bb57cab2a8450c64237a63ab8c2ed0003a2b6286cf88781ac`.
+- Backup/restore count 25/25 bảng pass; xem [slice-0-implementation.md](slice-0-implementation.md).
 
 ## 2. Tổng quan schema
 
@@ -40,7 +47,7 @@ ERD đầy đủ: [current-database-erd.md](current-database-erd.md).
 
 ## 3. View, procedure, trigger và event
 
-Không có câu lệnh `CREATE VIEW/PROCEDURE/FUNCTION/TRIGGER/EVENT` trong migration. Prisma schema cũng không khai báo view. Cần chạy trên database clone:
+Không có câu lệnh `CREATE VIEW/PROCEDURE/FUNCTION/TRIGGER/EVENT` trong migration. Prisma schema cũng không khai báo view. Inventory local xác nhận số lượng đều bằng 0; vẫn cần chạy lại trên production clone:
 
 ```sql
 SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE();

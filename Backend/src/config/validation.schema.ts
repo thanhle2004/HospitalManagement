@@ -1,10 +1,44 @@
 import * as Joi from 'joi';
 
+const corsOrigins = Joi.string().custom((value: string, helpers) => {
+  const origins = value
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (origins.length === 0 || origins.includes('*')) {
+    return helpers.error('any.invalid');
+  }
+
+  try {
+    for (const origin of origins) {
+      const url = new URL(origin);
+      if (!['http:', 'https:'].includes(url.protocol) || url.origin !== origin) {
+        return helpers.error('any.invalid');
+      }
+    }
+  } catch {
+    return helpers.error('any.invalid');
+  }
+
+  return value;
+}, 'CORS origin allowlist');
+
 export const validationSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
     .default('development'),
   PORT: Joi.number().default(3000),
+  CORS_ORIGINS: Joi.when('NODE_ENV', {
+    is: 'production',
+    then: corsOrigins.required(),
+    otherwise: corsOrigins.default('http://localhost:3001'),
+  }),
+  SWAGGER_ENABLED: Joi.when('NODE_ENV', {
+    is: 'production',
+    then: Joi.boolean().truthy('true').falsy('false').default(false),
+    otherwise: Joi.boolean().truthy('true').falsy('false').default(true),
+  }),
   DATABASE_URL: Joi.string()
     .uri({ scheme: ['mysql'] })
     .required()
