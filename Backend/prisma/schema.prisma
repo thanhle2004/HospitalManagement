@@ -1,0 +1,723 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+//////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////
+
+enum UserRole {
+  ADMIN
+  DOCTOR
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum RoomStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum DeviceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum DeviceType {
+  QR_SCANNER
+}
+
+enum VisitStatus {
+  CREATED
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// [SỬA §7] VisitStep.status và VisitAssignment.status là 2 state machine
+// SONG SONG, KHÔNG trùng nhau:
+//  - VisitStep.status  = trạng thái tổng thể của 1 bước khám (có thể trải
+//    qua nhiều VisitAssignment nếu bị reroute nhiều lần).
+//  - VisitAssignment.status = trạng thái của 1 lần gán phòng cụ thể.
+// Service layer BẮT BUỘC đồng bộ 2 field này trong cùng transaction, ví dụ:
+// khi VisitAssignment -> CHECKED_IN thì VisitStep cũng phải -> CHECKED_IN.
+// Không có cách nào enforce việc này ở tầng DB (MySQL không hỗ trợ trigger
+// khai báo qua Prisma) — phải viết test riêng cho invariant này.
+enum VisitStepStatus {
+  LOCKED      // Chưa đủ dependency
+  READY       // Được phép điều phối
+  ASSIGNED    // Đã gán phòng
+  CHECKED_IN  // Đã quét QR
+  IN_PROGRESS // Bác sĩ bắt đầu khám
+  COMPLETED
+  SKIPPED
+  CANCELLED
+}
+
+enum AssignmentStatus {
+  WAITING
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum RoutingStatus {
+  PENDING
+  PROCESSING
+  FAILED
+}
+
+// [MỚI] Lý do huỷ VisitAssignment — phục vụ thống kê và đối chiếu ActivityLog
+enum CancelReason {
+  PATIENT_LEFT        // §11.4 — bệnh nhân chủ động rời hàng đợi
+  NO_SHOW_TIMEOUT      // §11.1 — hết hạn VisitToken/VisitAssignment mà chưa check-in
+  ADMIN_INTERVENTION   // Admin/lễ tân huỷ thủ công
+  SYSTEM_ERROR
+}
+
+// [MỚI] Nguồn gốc của một RoomQueueEntry — phân biệt entry tự động (check-in QR)
+// với entry bị Admin/lễ tân can thiệp thủ công, hỗ trợ §3 (giải trình ActivityLog)
+enum QueueEntrySource {
+  AUTO_CHECKIN
+  MANUAL_ADMIN
+}
+
+// [MỚI] Mục đích của một mã OTP — tách biệt luồng đăng ký lần đầu và đăng nhập
+enum OtpPurpose {
+  REGISTER
+  LOGIN
+}
+
+//////////////////////////////////////////////////
+// AUTH — STAFF (Admin / Doctor)
+//////////////////////////////////////////////////
+
+model User {
+  id String @id @default(uuid()) @db.Char(36)
+
+  email        String @unique
+  passwordHash String @map("password_hash")
+
+  role   UserRole
+  status UserStatus @default(ACTIVE)
+
+  lastLoginAt DateTime? @map("last_login_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  profile       UserProfile?
+  refreshTokens RefreshToken[]
+
+  doctorAssignments DoctorAssignment[]
+  visitAssignments  VisitAssignment[]
+  activityLogs      ActivityLog[]
+
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model UserProfile {
+  id String @id @default(uuid()) @db.Char(36)
+
+  userId String @unique @map("user_id") @db.Char(36)
+
+  fullName String @map("full_name")
+
+  phone     String?
+  avatarUrl String?   @map("avatar_url")
+  gender    Gender?
+  birthday  DateTime?
+  address   String?
+
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model RefreshToken {
+  id String @id @default(uuid()) @db.Char(36)
+
+  userId String @map("user_id") @db.Char(36)
+
+  tokenHash String @map("token_hash")
+
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+//////////////////////////////////////////////////
+// AUTH — PATIENT (phone + OTP, không dùng password)
+//////////////////////////////////////////////////
+
+// [MỚI] Lưu OTP đã hash (không lưu plaintext). Dùng chung cho cả luồng
+// đăng ký lần đầu (REGISTER) và đăng nhập các lần sau (LOGIN) — §2.2.
+model PatientOtp {
+  id String @id @default(uuid()) @db.Char(36)
+
+  phone    String
+  codeHash String @map("code_hash")
+
+  purpose OtpPurpose
+
+  attempts    Int @default(0)
+  maxAttempts Int @default(5) @map("max_attempts")
+
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Chỉ set sau khi OTP được xác thực thành công và Patient đã tồn tại
+  // (đăng nhập); khi đăng ký lần đầu, patientId còn null lúc tạo OTP.
+  patientId String?  @map("patient_id") @db.Char(36)
+  patient   Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+
+  @@index([phone, purpose, expiresAt])
+  @@map("patient_otps")
+}
+
+// [MỚI] Phiên đăng nhập của Patient — tương đương RefreshToken của User
+// nhưng tách riêng vì vòng đời/luồng cấp phát khác nhau (không có password).
+model PatientSession {
+  id String @id @default(uuid()) @db.Char(36)
+
+  patientId        String @map("patient_id") @db.Char(36)
+  refreshTokenHash String @map("refresh_token_hash")
+
+  deviceInfo String? @map("device_info")
+  ipAddress  String? @map("ip_address")
+
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([expiresAt])
+  @@map("patient_sessions")
+}
+
+//////////////////////////////////////////////////
+// PATIENT
+//////////////////////////////////////////////////
+
+model PatientType {
+  id Int @id @default(autoincrement())
+
+  code String @unique
+  name String
+
+  description String?
+
+  deletedAt DateTime? @map("deleted_at")
+
+  patients Patient[]
+
+  @@map("patient_types")
+}
+
+model Patient {
+  id String @id @default(uuid()) @db.Char(36)
+
+  phone    String  @unique
+  fullName String  @map("full_name")
+  gender   Gender?
+  birthday DateTime?
+
+  email            String?
+  address          String?
+  identityNumber   String? @map("identity_number")
+  emergencyContact String? @map("emergency_contact")
+
+  patientTypeId Int @map("patient_type_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  patientType PatientType @relation(fields: [patientTypeId], references: [id])
+
+  visits   Visit[]
+  otps     PatientOtp[]
+  sessions PatientSession[]
+
+  @@index([phone])
+  @@index([patientTypeId])
+  @@map("patients")
+}
+
+//////////////////////////////////////////////////
+// ROOM
+//////////////////////////////////////////////////
+
+model RoomType {
+  id Int @id @default(autoincrement())
+
+  name        String
+  description String?
+
+  avgProcessTime Int @map("avg_process_time")
+
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  rooms      Room[]
+  flowSteps  FlowStep[]
+  visitSteps VisitStep[]
+
+  @@map("room_types")
+}
+
+model Room {
+  id Int @id @default(autoincrement())
+
+  roomNumber String @unique @map("room_number")
+  name       String
+
+  // §11.5 — dùng riêng cho tie-break ETA bằng nhau / sắp xếp hiển thị.
+  // Tách khỏi roomNumber (String) vì so sánh lexicographic trên "10" vs "2"
+  // sẽ sai thứ tự trực quan.
+  sortOrder Int @default(0) @map("sort_order")
+
+  roomTypeId Int @map("room_type_id")
+
+  status RoomStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
+
+  devices           Device[]
+  doctorAssignments DoctorAssignment[]
+  runtime           RoomRuntime?
+  visitAssignments  VisitAssignment[]
+  queueEntries      RoomQueueEntry[]
+
+  @@index([roomTypeId, status])
+  @@index([status])
+  @@index([roomTypeId, sortOrder])
+  @@map("rooms")
+}
+
+// Hàng đợi tường minh tại từng phòng khám. Nguyên tắc: công bằng tuyệt đối
+// theo FIFO (đến trước khám trước) — KHÔNG có trường priority nào ảnh hưởng
+// thứ tự tự động, để tránh thiên vị giữa các loại bệnh nhân.
+//
+// [SỬA §5] `position` đổi từ Int sang Float để dùng kỹ thuật fractional
+// ordering (kiểu LexoRank): khi cần chèn 1 entry vào giữa 2 entry hiện có,
+// lấy trung bình cộng của 2 giá trị lân cận (vd giữa 1.0 và 2.0 → 1.5) thay
+// vì phải re-index toàn bộ các dòng phía sau mỗi lần enqueue/dequeue giữa
+// hàng đợi. Chỉ cần re-index toàn bộ (rebalance) định kỳ nếu khoảng cách
+// giữa 2 giá trị liền kề co lại quá nhỏ (hiếm khi xảy ra ở quy mô 1 phòng
+// khám). @@unique vẫn giữ để đảm bảo không có 2 entry trùng vị trí.
+model RoomQueueEntry {
+  id Int @id @default(autoincrement())
+
+  roomId            Int @map("room_id")
+  visitAssignmentId Int @unique @map("visit_assignment_id")
+
+  position Float
+
+  // Phân biệt entry sinh tự động (check-in QR) vs. do Admin can thiệp
+  // thủ công — hỗ trợ trực tiếp yêu cầu giải trình ở §3.
+  source QueueEntrySource @default(AUTO_CHECKIN)
+
+  enqueuedAt DateTime @default(now()) @map("enqueued_at")
+
+  room            Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  visitAssignment VisitAssignment @relation(fields: [visitAssignmentId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, position])
+  @@index([roomId, enqueuedAt])
+  @@map("room_queue_entries")
+}
+
+// [SỬA §4] Không thể enforce "không trùng ca trực" (overlap giữa startTime
+// và endTime của cùng 1 doctorId) bằng constraint khai báo trong Prisma —
+// MySQL không có range/exclusion constraint như Postgres. Việc kiểm tra
+// chồng lấn ca trực BẮT BUỘC thực hiện ở DoctorAssignmentService trước khi
+// insert/update (query các assignment hiện có của doctor đó, kiểm tra
+// [startTime, endTime) có giao với khoảng mới không). Thêm composite index
+// bên dưới để câu query kiểm tra overlap chạy nhanh.
+model DoctorAssignment {
+  id Int @id @default(autoincrement())
+
+  doctorId String @map("doctor_id") @db.Char(36)
+  roomId   Int @map("room_id")
+
+  startTime DateTime  @map("start_time")
+  endTime   DateTime? @map("end_time")
+  // Đang trực khi endTime == null. Bỏ isActive để tránh 2 nguồn sự thật.
+
+  doctor User @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  room   Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, endTime])
+  @@index([roomId, endTime])
+  @@index([doctorId, startTime, endTime])
+  @@map("doctor_assignments")
+}
+
+model Device {
+  id String @id @default(uuid()) @db.Char(36)
+
+  code          String @unique
+  name          String
+  // Hash secret dùng để Android login lấy JWT — không lưu plaintext,
+  // tương tự passwordHash của User (secretKey đóng vai trò như password).
+  secretKeyHash String @map("secret_key_hash")
+
+  roomId Int @map("room_id")
+  type   DeviceType
+
+  status          DeviceStatus @default(ACTIVE)
+  lastHeartbeatAt DateTime?    @map("last_heartbeat_at")
+  appVersion      String?      @map("app_version")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  checkInLogs CheckInLog[]
+
+  @@index([roomId])
+  @@index([status])
+  @@map("devices")
+}
+
+// [SỬA §3b] Bỏ field `waitingCount` cache — số lượng bệnh nhân đang chờ
+// giờ luôn tính động bằng `prisma.roomQueueEntry.count({ where: { roomId }})`
+// ngay tại thời điểm Routing Engine cần ETA. Lý do: waitingCount là dữ liệu
+// denormalized, nếu bất kỳ luồng nào (enqueue/dequeue/cancel/reroute) quên
+// đồng bộ field này thì ETA sẽ tính sai mà rất khó phát hiện qua test. Đánh
+// đổi: chậm hơn 1 query COUNT() mỗi lần routing, nhưng luôn đúng.
+model RoomRuntime {
+  roomId Int @id @map("room_id")
+
+  currentVisitAssignmentId Int? @unique @map("current_visit_assignment_id")
+
+  // Optimistic locking để tránh race condition khi nhiều tiến trình routing
+  // cùng cập nhật một RoomRuntime. Mọi update phải kèm điều kiện
+  // WHERE version = :currentVersion và tăng version lên 1; nếu 0 row bị
+  // ảnh hưởng thì coi là conflict và retry toàn bộ quyết định routing.
+  version Int @default(0)
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  room                   Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  currentVisitAssignment VisitAssignment? @relation(fields: [currentVisitAssignmentId], references: [id])
+
+  // ETA không lưu ở đây — Routing Engine tính động khi cần.
+
+  @@map("room_runtimes")
+}
+
+//////////////////////////////////////////////////
+// FLOW / WORKFLOW
+//////////////////////////////////////////////////
+
+model Flow {
+  id Int @id @default(autoincrement())
+
+  code String @unique
+  name String
+
+  description String?
+  deletedAt   DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  steps  FlowStep[]
+  visits Visit[]
+
+  @@map("flows")
+}
+
+// [SỬA §2] Bỏ @@unique([flowId, roomTypeId]) — Admin được phép thiết kế 1
+// Flow có nhiều FlowStep cùng trỏ tới 1 RoomType (vd khám lại phòng Nội
+// tổng quát 2 lần ở 2 giai đoạn khác nhau của quy trình). Định danh duy
+// nhất trong 1 Flow giờ chỉ còn dựa vào `code` (@@unique([flowId, code])),
+// nên khi Admin tạo 2 step cùng RoomType, phải đặt `code` khác nhau (vd
+// "XRAY_1", "XRAY_2") để phân biệt trên UI.
+model FlowStep {
+  id Int @id @default(autoincrement())
+
+  flowId Int @map("flow_id")
+
+  code String // vd: XRAY_1, XRAY_2, LAB, INTERNAL — dùng cho UI, phải khác nhau trong cùng Flow
+
+  roomTypeId   Int     @map("room_type_id")
+  displayOrder Int     @map("display_order")
+  isOptional   Boolean @default(false) @map("is_optional")
+
+  flow     Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  roomType RoomType @relation(fields: [roomTypeId], references: [id])
+
+  dependencies FlowDependency[] @relation("DependencyTarget")
+  requiredBy   FlowDependency[] @relation("DependencySource")
+
+  visitSteps VisitStep[]
+
+  @@unique([flowId, code])
+  @@index([flowId])
+  @@index([flowId, roomTypeId])
+  @@map("flow_steps")
+}
+
+// Lưu ý: Prisma chưa hỗ trợ CHECK constraint. Backend PHẢI validate
+// stepId != requiredStepId trước khi insert để tránh self-reference.
+model FlowDependency {
+  stepId         Int @map("step_id")
+  requiredStepId Int @map("required_step_id")
+
+  step FlowStep @relation("DependencyTarget", fields: [stepId], references: [id], onDelete: Cascade)
+
+  requiredStep FlowStep @relation("DependencySource", fields: [requiredStepId], references: [id], onDelete: Cascade)
+
+  @@id([stepId, requiredStepId])
+  @@map("flow_dependencies")
+}
+
+//////////////////////////////////////////////////
+// VISIT (RUNTIME WORKFLOW)
+//////////////////////////////////////////////////
+
+model Visit {
+  id String @id @default(uuid()) @db.Char(36)
+
+  patientId String @map("patient_id") @db.Char(36)
+  flowId    Int    @map("flow_id")
+
+  status VisitStatus @default(CREATED)
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  cancelledAt DateTime? @map("cancelled_at")
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  flow    Flow    @relation(fields: [flowId], references: [id])
+
+  steps VisitStep[]
+
+  @@index([patientId])
+  @@index([status])
+  @@map("visits")
+}
+
+// [SỬA §1] `flowStepId` đổi thành nullable + thêm `isAdHoc`. Khi Doctor
+// "chỉ định thêm" 1 bước khám không nằm trong Flow gốc (§4), tạo VisitStep
+// mới với `flowStepId = null`, `isAdHoc = true`. Khi đó VisitStep không kế
+// thừa dependency nào từ FlowStep (không có VisitStepDependency tự động) —
+// nếu bước ad-hoc cần phụ thuộc vào bước khác, Doctor/hệ thống phải tự tạo
+// VisitStepDependency thủ công cho riêng bệnh nhân đó.
+// Đồng thời, vì đã bỏ unique(flowId, roomTypeId) ở FlowStep, 1 Visit hoàn
+// toàn có thể có nhiều VisitStep cùng roomTypeId — kể cả sinh từ FlowStep
+// (khám lại theo thiết kế Flow) lẫn ad-hoc (Doctor tự thêm giữa chừng).
+model VisitStep {
+  id Int @id @default(autoincrement())
+
+  visitId    String @map("visit_id") @db.Char(36)
+  flowStepId Int?   @map("flow_step_id")
+  isAdHoc    Boolean @default(false) @map("is_ad_hoc")
+
+  // Giữ lại roomTypeId (thay vì suy ra qua flowStep) vì bác sĩ được phép
+  // đổi loại phòng khám giữa chừng (vd chuyển từ X-Quang sang MRI), và vì
+  // bước ad-hoc không có flowStep để suy ra.
+  roomTypeId Int @map("room_type_id")
+
+  status       VisitStepStatus @default(LOCKED)
+  displayOrder Int             @map("display_order")
+  isOptional   Boolean         @map("is_optional")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  visit    Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  flowStep FlowStep? @relation(fields: [flowStepId], references: [id])
+  roomType RoomType  @relation(fields: [roomTypeId], references: [id])
+
+  dependencies VisitStepDependency[] @relation("VisitDependencyTarget")
+  requiredBy   VisitStepDependency[] @relation("VisitDependencySource")
+
+  assignments  VisitAssignment[]
+  routingQueue RoutingQueue?
+
+  @@index([visitId, status])
+  @@index([roomTypeId, status])
+  @@map("visit_steps")
+}
+
+// Backend cũng phải validate stepId != requiredStepId ở đây, tương tự FlowDependency.
+model VisitStepDependency {
+  stepId         Int @map("step_id")
+  requiredStepId Int @map("required_step_id")
+
+  step VisitStep @relation("VisitDependencyTarget", fields: [stepId], references: [id], onDelete: Cascade)
+
+  requiredStep VisitStep @relation("VisitDependencySource", fields: [requiredStepId], references: [id], onDelete: Cascade)
+
+  @@id([stepId, requiredStepId])
+  @@map("visit_step_dependencies")
+}
+
+model VisitAssignment {
+  id Int @id @default(autoincrement())
+
+  visitStepId Int     @map("visit_step_id")
+  roomId      Int     @map("room_id")
+  doctorId    String? @map("doctor_id") @db.Char(36)
+
+  status AssignmentStatus @default(WAITING)
+
+  // Chỉ có giá trị khi status = CANCELLED — phân biệt no-show, rời hàng tự
+  // nguyện, can thiệp thủ công, lỗi hệ thống (§11.1, §11.4).
+  cancelReason CancelReason? @map("cancel_reason")
+
+  assignedAt  DateTime  @default(now()) @map("assigned_at")
+  checkedInAt DateTime? @map("checked_in_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  cancelledAt DateTime? @map("cancelled_at")
+
+  // Lịch sử điều phối lại (Room101 -> Room102 -> Room105...)
+  reroutedFromId Int? @map("rerouted_from_id")
+
+  visitStep VisitStep @relation(fields: [visitStepId], references: [id], onDelete: Cascade)
+  room      Room      @relation(fields: [roomId], references: [id])
+  doctor    User?     @relation(fields: [doctorId], references: [id])
+
+  reroutedFrom VisitAssignment?  @relation("AssignmentReroute", fields: [reroutedFromId], references: [id])
+  reroutedTo   VisitAssignment[] @relation("AssignmentReroute")
+
+  qrToken     VisitToken?
+  checkInLogs CheckInLog[]
+  roomRuntime RoomRuntime?
+  queueEntry  RoomQueueEntry?
+
+  @@index([roomId, status])
+  @@index([doctorId, status])
+  @@index([visitStepId])
+  @@map("visit_assignments")
+}
+
+model VisitToken {
+  id String @id @default(uuid()) @db.Char(36)
+
+  visitAssignmentId Int    @unique @map("visit_assignment_id")
+  token             String @unique
+
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  visitAssignment VisitAssignment @relation(fields: [visitAssignmentId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("visit_tokens")
+}
+
+model CheckInLog {
+  id BigInt @id @default(autoincrement())
+
+  visitAssignmentId Int     @map("visit_assignment_id")
+  deviceId          String? @map("device_id") @db.Char(36)
+
+  scannedAt    DateTime @default(now()) @map("scanned_at")
+  success      Boolean  @default(true)
+  errorMessage String?  @map("error_message")
+
+  visitAssignment VisitAssignment @relation(fields: [visitAssignmentId], references: [id], onDelete: Cascade)
+  device          Device?         @relation(fields: [deviceId], references: [id])
+
+  @@index([visitAssignmentId])
+  @@index([deviceId])
+  @@map("check_in_logs")
+}
+
+model RoutingQueue {
+  visitStepId Int @id @map("visit_step_id")
+
+  status RoutingStatus @default(PENDING)
+
+  retryCount Int @default(0) @map("retry_count")
+
+  enqueueAt    DateTime  @default(now()) @map("enqueue_at")
+  processingAt DateTime? @map("processing_at")
+  lastError    String?   @map("last_error")
+
+  visitStep VisitStep @relation(fields: [visitStepId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("routing_queues")
+}
+
+//////////////////////////////////////////////////
+// AUDIT
+//////////////////////////////////////////////////
+
+model ActivityLog {
+  id BigInt @id @default(autoincrement())
+
+  userId String? @map("user_id") @db.Char(36)
+
+  action   String
+  entity   String
+  entityId String @map("entity_id")
+
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+
+  metadata Json?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@map("activity_logs")
+}

@@ -1,0 +1,29 @@
+# Secrets and local configuration
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+
+# Dependencies and generated application output
+**/node_modules/
+**/dist/
+**/.next/
+**/coverage/
+**/*.tsbuildinfo
+
+# Database artifacts must stay outside version control
+artifacts/
+backups/
+*.sql.gz
+*.dump
+
+# Logs and local runtime files
+*.log
+*.pid
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp

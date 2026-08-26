@@ -1,0 +1,40 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: hospital-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: hospital_management
+      MYSQL_USER: hospital
+      MYSQL_PASSWORD: hospital_password
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hospital-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    environment:
+      # Ghi đè DATABASE_URL trong .env (thường trỏ "localhost" cho dev
+      # ngoài Docker) — bên trong mạng Docker phải trỏ đúng tên service "mysql"
+      DATABASE_URL: 'mysql://hospital:hospital_password@mysql:3306/hospital_management'
+
+volumes:
+  mysql_data:
