@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { EventEmitter2 } from "@nestjs/event-emitter";
+import { AssignmentStatus } from "@prisma/client";
 import { RoomQueueEntriesRepository } from "../check-in/repositories/room-queue-entries.repository";
 import { ActivityLogService } from "../activity-log/activity-log.service";
 import { AdminQueueEntryDto } from "./dto/admin-queue-entry.dto";
@@ -53,10 +54,11 @@ export class AdminQueueService {
    * đưa 1 bệnh nhân lên đầu hàng đợi của đúng phòng nó đang chờ.
    */
   async moveToFront(adminUserId: string, queueEntryId: number): Promise<void> {
-    const entry = await this.roomQueueEntriesRepository.findById(queueEntryId);
+    const entry = await this.roomQueueEntriesRepository.findByIdWithAssignment(queueEntryId);
     if (!entry) {
       throw new NotFoundException(`RoomQueueEntry #${queueEntryId} không tồn tại`);
     }
+    this.assertCanReorder(entry.visitAssignment.status);
 
     const minPosition = await this.roomQueueEntriesRepository.getMinPosition(
       entry.roomId,
@@ -87,8 +89,8 @@ export class AdminQueueService {
     }
 
     const [entry, target] = await Promise.all([
-      this.roomQueueEntriesRepository.findById(queueEntryId),
-      this.roomQueueEntriesRepository.findById(targetQueueEntryId),
+      this.roomQueueEntriesRepository.findByIdWithAssignment(queueEntryId),
+      this.roomQueueEntriesRepository.findByIdWithAssignment(targetQueueEntryId),
     ]);
     if (!entry) {
       throw new NotFoundException(`RoomQueueEntry #${queueEntryId} không tồn tại`);
@@ -96,6 +98,7 @@ export class AdminQueueService {
     if (!target) {
       throw new NotFoundException(`RoomQueueEntry #${targetQueueEntryId} không tồn tại`);
     }
+    this.assertCanReorder(entry.visitAssignment.status);
     if (entry.roomId !== target.roomId) {
       throw new BadRequestException("2 entry phải cùng thuộc 1 phòng khám");
     }
@@ -117,6 +120,22 @@ export class AdminQueueService {
       newPosition,
       afterQueueEntryId: targetQueueEntryId,
     });
+  }
+
+  private assertCanReorder(status: AssignmentStatus): void {
+    if (status === AssignmentStatus.IN_PROGRESS) {
+      throw new BadRequestException(
+        "Không thể đổi vị trí bệnh nhân đang được khám",
+      );
+    }
+    if (
+      status === AssignmentStatus.COMPLETED ||
+      status === AssignmentStatus.CANCELLED
+    ) {
+      throw new BadRequestException(
+        "Không thể đổi vị trí bệnh nhân đã rời hàng đợi",
+      );
+    }
   }
 
   private async logAndBroadcast(

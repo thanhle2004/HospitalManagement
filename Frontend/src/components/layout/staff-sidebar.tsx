@@ -12,7 +12,7 @@ import {
   ListChecks,       // Thay cho ClipboardList (Dịch vụ khám)
   UserCog2,         // Thay cho Users (Phân loại BN)
   Users,            // Thay cho Users (Danh sách BN)
-  Settings,         // Thay cho Workflow (Giám sát hàng đợi - tạm thời)
+  ListOrdered,
   Activity,         // Thay cho History (Nhật ký)
   // Lucide icons bổ sung cho các nhóm
 } from "lucide-react";
@@ -37,11 +37,11 @@ const NAV_ITEMS = [
   ]},
   { section: "QUẢN LÝ BỆNH NHÂN", items: [
     { href: "/admin/patient-types", label: "Phân loại bệnh nhân", icon: UserCog2, built: true },
-    { href: "/admin/patients", label: "Danh sách bệnh nhân", icon: Users, built: false }, // Giả định path mới
+    { href: "/admin/patients", label: "Danh sách bệnh nhân", icon: Users, built: true },
   ]},
   { section: "HỆ THỐNG", items: [
-    { href: "/admin/flows", label: "Giám sát hàng đợi", icon: Settings, built: false }, // Tạm thời map vào flows
-    { href: "/admin/activity-logs", label: "Nhật ký hoạt động", icon: Activity, built: false },
+    { href: "/admin/queue", label: "Giám sát hàng đợi", icon: ListOrdered, built: true },
+    { href: "/admin/activity-logs", label: "Nhật ký hoạt động", icon: Activity, built: true },
   ]},
 ] as const;
 

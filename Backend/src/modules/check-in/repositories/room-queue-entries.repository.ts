@@ -19,6 +19,13 @@ export class RoomQueueEntriesRepository {
     return db.roomQueueEntry.findUnique({ where: { id } });
   }
 
+  findByIdWithAssignment(id: number, db: Db = this.prisma) {
+    return db.roomQueueEntry.findUnique({
+      where: { id },
+      include: { visitAssignment: true },
+    });
+  }
+
   /**
    * position dùng fractional ordering (xem ghi chú trong schema.prisma) —
    * Phase 7 luôn APPEND vào cuối hàng đợi nên chỉ cần lấy max hiện tại + 1.
