@@ -33,7 +33,7 @@ const NAV_ITEMS = [
     { href: "/admin/devices", label: "Thiết bị QR", icon: QrCode, built: true },
   ]},
   { section: "DỊCH VỤ", items: [
-    { href: "/admin/queue", label: "Dịch vụ khám", icon: ListChecks, built: false }, // Tạm thời map vào queue
+    { href: "/admin/services", label: "Dịch vụ khám", icon: ListChecks, built: true },
   ]},
   { section: "QUẢN LÝ BỆNH NHÂN", items: [
     { href: "/admin/patient-types", label: "Phân loại bệnh nhân", icon: UserCog2, built: true },
