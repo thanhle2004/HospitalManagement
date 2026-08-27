@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/features/auth/store";
 import type { StaffRole } from "@/features/auth/types";
+import { useSessionBootstrap } from "@/features/auth/hooks";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -12,20 +13,19 @@ interface AuthGuardProps {
 }
 
 /**
- * Vì token lưu ở localStorage (không phải httpOnly cookie), Next.js proxy.ts
- * (middleware) chạy trên edge/server KHÔNG đọc được — bảo vệ route phải làm
- * ở client, sau khi zustand hydrate xong từ localStorage.
+ * Proxy phía server chặn route trước khi render. Guard này tải DTO user an toàn
+ * từ backend để hydrate UI và thực hiện redirect theo role cho client navigation.
  */
 export function AuthGuard({ children, allow }: AuthGuardProps) {
   const router = useRouter();
-  const isHydrated = useAuthStore((s) => s.isHydrated);
-  const accessToken = useAuthStore((s) => s.accessToken);
+  useSessionBootstrap();
+  const isInitialized = useAuthStore((s) => s.isInitialized);
   const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isInitialized) return;
 
-    if (!accessToken || !user) {
+    if (!user) {
       router.replace("/login");
       return;
     }
@@ -33,9 +33,9 @@ export function AuthGuard({ children, allow }: AuthGuardProps) {
     if (allow && !allow.includes(user.role)) {
       router.replace(user.role === "ADMIN" ? "/admin" : "/doctor");
     }
-  }, [isHydrated, accessToken, user, allow, router]);
+  }, [isInitialized, user, allow, router]);
 
-  const isAuthorized = isHydrated && !!accessToken && !!user && (!allow || allow.includes(user.role));
+  const isAuthorized = isInitialized && !!user && (!allow || allow.includes(user.role));
 
   if (!isAuthorized) {
     return (

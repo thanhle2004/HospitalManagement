@@ -84,4 +84,8 @@ export const validationSchema = Joi.object({
   OTP_EXPIRES_IN_SECONDS: Joi.number().default(300), // 5 phút
   OTP_RESEND_COOLDOWN_SECONDS: Joi.number().default(60),
   OTP_MAX_ATTEMPTS: Joi.number().default(5),
+  AUTH_RATE_LIMIT_ENABLED: Joi.boolean()
+    .truthy('true')
+    .falsy('false')
+    .default(true),
 });

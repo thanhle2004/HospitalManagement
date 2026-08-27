@@ -40,11 +40,24 @@ export class UsersRepository {
   }
 
   updateStatus(id: string, status: UserStatus, db: Db = this.prisma): Promise<User> {
-    return db.user.update({ where: { id }, data: { status } });
+    return db.user.update({
+      where: { id },
+      data: { status, tokenVersion: { increment: 1 } },
+    });
   }
 
   updatePassword(id: string, passwordHash: string, db: Db = this.prisma): Promise<User> {
-    return db.user.update({ where: { id }, data: { passwordHash } });
+    return db.user.update({
+      where: { id },
+      data: { passwordHash, tokenVersion: { increment: 1 } },
+    });
+  }
+
+  incrementTokenVersion(id: string, db: Db = this.prisma): Promise<User> {
+    return db.user.update({
+      where: { id },
+      data: { tokenVersion: { increment: 1 } },
+    });
   }
 
   updateLastLogin(id: string, db: Db = this.prisma): Promise<User> {

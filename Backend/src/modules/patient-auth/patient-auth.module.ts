@@ -8,6 +8,7 @@ import { PatientOtpRepository } from './repositories/patient-otp.repository';
 import { PatientSessionRepository } from './repositories/patient-session.repository';
 import { OtpSenderService } from './otp-sender.service';
 import { PatientsModule } from '../patients/patients.module';
+import { PatientAuthChallengesController } from './patient-auth-challenges.controller';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { PatientsModule } from '../patients/patients.module';
     // cho từng lần sign/verify, khác với secret của Staff.
     JwtModule.register({}),
   ],
-  controllers: [PatientAuthController],
+  controllers: [PatientAuthController, PatientAuthChallengesController],
   providers: [
     PatientAuthService,
     PatientJwtStrategy,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -16,6 +16,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }),
   );
+
+  useEffect(() => {
+    // Dọn token do phiên bản cũ từng persist vào localStorage. Slice 1 chỉ dùng
+    // cookie HttpOnly do Route Handler phía server quản lý.
+    window.localStorage.removeItem("staff-auth");
+  }, []);
 
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }

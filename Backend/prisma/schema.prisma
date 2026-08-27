@@ -119,6 +119,10 @@ model User {
   role   UserRole
   status UserStatus @default(ACTIVE)
 
+  // Tăng mỗi khi khoá/mở khoá, đổi mật khẩu hoặc đăng xuất để mọi access
+  // token đã cấp trước đó mất hiệu lực ngay ở lần request kế tiếp.
+  tokenVersion Int @default(0) @map("token_version")
+
   lastLoginAt DateTime? @map("last_login_at")
 
   createdAt DateTime  @default(now()) @map("created_at")
@@ -267,6 +271,8 @@ model Patient {
 
   patientTypeId Int @map("patient_type_id")
 
+  tokenVersion Int @default(0) @map("token_version")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -409,6 +415,7 @@ model Device {
   type   DeviceType
 
   status          DeviceStatus @default(ACTIVE)
+  tokenVersion    Int          @default(0) @map("token_version")
   lastHeartbeatAt DateTime?    @map("last_heartbeat_at")
   appVersion      String?      @map("app_version")
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { authApi } from "./api";
@@ -15,14 +16,29 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (payload: LoginRequest) => authApi.login(payload),
-    onSuccess: async (tokens) => {
-      // Set token TRƯỚC khi gọi getMe() — apiFetch cần đọc token từ store để đính kèm header
-      useAuthStore.getState().setTokens(tokens.accessToken, tokens.refreshToken);
-      const user = await authApi.getMe();
+    onSuccess: (user) => {
       useAuthStore.getState().setUser(user);
       router.replace(dashboardPathFor(user.role));
     },
   });
+}
+
+let pendingBootstrap: Promise<void> | null = null;
+
+export function useSessionBootstrap(): void {
+  const isInitialized = useAuthStore((state) => state.isInitialized);
+
+  useEffect(() => {
+    if (isInitialized) return;
+
+    pendingBootstrap ??= authApi
+      .getSession()
+      .then((user) => useAuthStore.getState().setUser(user))
+      .catch(() => useAuthStore.getState().clearAuth())
+      .finally(() => {
+        pendingBootstrap = null;
+      });
+  }, [isInitialized]);
 }
 
 export function useLogout() {
@@ -32,8 +48,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => authApi.logout(),
     onSettled: () => {
-      // Luôn xoá auth local dù API logout có lỗi (vd mất mạng) — trải nghiệm
-      // người dùng ưu tiên "chắc chắn đăng xuất được" hơn là đợi server xác nhận
+      // Luôn xoá user khỏi bộ nhớ UI; Route Handler cũng xoá cookie HttpOnly.
       useAuthStore.getState().clearAuth();
       queryClient.clear();
       router.replace("/login");

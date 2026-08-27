@@ -30,6 +30,13 @@ export class PatientsRepository {
     return db.patient.create({ data });
   }
 
+  incrementTokenVersion(id: string, db: Db = this.prisma): Promise<Patient> {
+    return db.patient.update({
+      where: { id },
+      data: { tokenVersion: { increment: 1 } },
+    });
+  }
+
   findDefaultPatientType(db: Db = this.prisma): Promise<PatientType | null> {
     return db.patientType.findUnique({ where: { code: 'STANDARD' } });
   }

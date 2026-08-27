@@ -31,6 +31,7 @@ import { HealthModule } from './modules/health/health.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
+import { SecurityModule } from './common/security/security.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
     // Bật @Cron() decorator — RoutingEngineService dùng để retry định kỳ
     ScheduleModule.forRoot(),
     PrismaModule,
+    SecurityModule,
     AuthModule,
     UsersModule,
     PatientsModule,

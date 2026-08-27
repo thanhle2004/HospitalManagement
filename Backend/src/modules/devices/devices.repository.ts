@@ -45,7 +45,10 @@ export class DevicesRepository {
     status: DeviceStatus,
     db: Db = this.prisma,
   ): Promise<Device> {
-    return db.device.update({ where: { id }, data: { status } });
+    return db.device.update({
+      where: { id },
+      data: { status, tokenVersion: { increment: 1 } },
+    });
   }
 
   updateSecret(
@@ -53,6 +56,9 @@ export class DevicesRepository {
     secretKeyHash: string,
     db: Db = this.prisma,
   ): Promise<Device> {
-    return db.device.update({ where: { id }, data: { secretKeyHash } });
+    return db.device.update({
+      where: { id },
+      data: { secretKeyHash, tokenVersion: { increment: 1 } },
+    });
   }
 }

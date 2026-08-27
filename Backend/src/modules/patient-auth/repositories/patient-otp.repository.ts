@@ -44,16 +44,23 @@ export class PatientOtpRepository {
     });
   }
 
-  incrementAttempts(id: string, db: Db = this.prisma): Promise<PatientOtp> {
-    return db.patientOtp.update({
-      where: { id },
+  incrementAttemptsIfAllowed(
+    id: string,
+    maxAttempts: number,
+    db: Db = this.prisma,
+  ): Promise<Prisma.BatchPayload> {
+    return db.patientOtp.updateMany({
+      where: { id, usedAt: null, attempts: { lt: maxAttempts } },
       data: { attempts: { increment: 1 } },
     });
   }
 
-  markUsed(id: string, db: Db = this.prisma): Promise<PatientOtp> {
-    return db.patientOtp.update({
-      where: { id },
+  consumeIfUnused(
+    id: string,
+    db: Db = this.prisma,
+  ): Promise<Prisma.BatchPayload> {
+    return db.patientOtp.updateMany({
+      where: { id, usedAt: null, expiresAt: { gt: new Date() } },
       data: { usedAt: new Date() },
     });
   }

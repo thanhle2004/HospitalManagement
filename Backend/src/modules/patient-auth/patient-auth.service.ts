@@ -7,8 +7,9 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { OtpPurpose } from '@prisma/client';
+import { OtpPurpose, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PatientsRepository } from '../patients/patients.repository';
 import { PatientOtpRepository } from './repositories/patient-otp.repository';
@@ -22,6 +23,7 @@ import { VerifyLoginDto } from './dto/verify-login.dto';
 import { PatientRefreshTokenDto } from './dto/patient-refresh-token.dto';
 import { PatientTokenResponseDto } from './dto/patient-token-response.dto';
 import { PatientJwtPayload } from './interfaces/patient-jwt-payload.interface';
+import { RequestOtpChallengeDto } from './dto/request-otp-challenge.dto';
 
 const OTP_SALT_ROUNDS = 10;
 
@@ -36,6 +38,38 @@ export class PatientAuthService {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * API v1 chống account enumeration: dù phone/purpose có khớp trạng thái
+   * tài khoản hay đang cooldown, client luôn nhận cùng một phản hồi.
+   * Các endpoint legacy vẫn được giữ nguyên cho ứng dụng cũ.
+   */
+  async requestOtpChallenge(
+    dto: RequestOtpChallengeDto,
+  ): Promise<{ message: string }> {
+    const genericResponse = {
+      message: 'Nếu yêu cầu hợp lệ, mã OTP sẽ được gửi',
+    };
+    const patient = await this.patientsRepository.findByPhone(dto.phone);
+    const stateMatches =
+      (dto.purpose === OtpPurpose.REGISTER && !patient) ||
+      (dto.purpose === OtpPurpose.LOGIN && !!patient);
+
+    if (!stateMatches) {
+      await this.simulateOtpHashWork();
+      return genericResponse;
+    }
+
+    try {
+      await this.assertResendCooldown(dto.phone, dto.purpose);
+    } catch (error) {
+      if (error instanceof BadRequestException) return genericResponse;
+      throw error;
+    }
+
+    await this.createAndSendOtp(dto.phone, dto.purpose, patient?.id ?? null);
+    return genericResponse;
+  }
 
   // ── ĐĂNG KÝ (REGISTER) ──────────────────────────────────────────────
 
@@ -82,6 +116,14 @@ export class PatientAuthService {
     }
 
     const patient = await this.prisma.transaction(async (tx) => {
+      const consumed = await this.patientOtpRepository.consumeIfUnused(
+        otp.id,
+        tx,
+      );
+      if (consumed.count !== 1) {
+        throw new UnauthorizedException('Mã OTP đã được sử dụng');
+      }
+
       const created = await this.patientsRepository.create(
         {
           phone: dto.phone,
@@ -97,12 +139,10 @@ export class PatientAuthService {
         tx,
       );
 
-      await this.patientOtpRepository.markUsed(otp.id, tx);
-
       return created;
     });
 
-    return this.issueTokens(patient.id, patient.phone);
+    return this.issueTokens(patient.id, patient.tokenVersion);
   }
 
   // ── ĐĂNG NHẬP (LOGIN) ───────────────────────────────────────────────
@@ -128,9 +168,18 @@ export class PatientAuthService {
     }
 
     const otp = await this.verifyOtpOrThrow(dto.phone, dto.otp, OtpPurpose.LOGIN);
-    await this.patientOtpRepository.markUsed(otp.id);
 
-    return this.issueTokens(patient.id, patient.phone);
+    return this.prisma.transaction(async (tx) => {
+      const consumed = await this.patientOtpRepository.consumeIfUnused(
+        otp.id,
+        tx,
+      );
+      if (consumed.count !== 1) {
+        throw new UnauthorizedException('Mã OTP đã được sử dụng');
+      }
+
+      return this.issueTokens(patient.id, patient.tokenVersion, tx);
+    });
   }
 
   // ── REFRESH / LOGOUT ────────────────────────────────────────────────
@@ -150,29 +199,36 @@ export class PatientAuthService {
       );
     }
 
-    const tokenHash = hashToken(dto.refreshToken);
-    const stored = await this.patientSessionRepository.findValid(
-      payload.sub,
-      tokenHash,
-    );
-    if (!stored) {
-      throw new UnauthorizedException(
-        'Refresh token đã bị thu hồi hoặc không tồn tại',
+    return this.prisma.transaction(async (tx) => {
+      const tokenHash = hashToken(dto.refreshToken);
+      const patient = await this.patientsRepository.findById(payload.sub, tx);
+      if (!patient) {
+        throw new NotFoundException('Tài khoản không còn tồn tại');
+      }
+      if ((payload.tokenVersion ?? 0) !== patient.tokenVersion) {
+        throw new UnauthorizedException('Phiên đăng nhập đã bị thu hồi');
+      }
+
+      const consumed = await this.patientSessionRepository.consumeValid(
+        payload.sub,
+        tokenHash,
+        tx,
       );
-    }
+      if (consumed.count < 1) {
+        throw new UnauthorizedException(
+          'Refresh token đã bị thu hồi hoặc đã được sử dụng',
+        );
+      }
 
-    await this.patientSessionRepository.revoke(stored.id);
-
-    const patient = await this.patientsRepository.findByPhone(payload.phone);
-    if (!patient) {
-      throw new NotFoundException('Tài khoản không còn tồn tại');
-    }
-
-    return this.issueTokens(patient.id, patient.phone);
+      return this.issueTokens(patient.id, patient.tokenVersion, tx);
+    });
   }
 
   async logout(patientId: string): Promise<void> {
-    await this.patientSessionRepository.revokeAllForPatient(patientId);
+    await this.prisma.transaction(async (tx) => {
+      await this.patientSessionRepository.revokeAllForPatient(patientId, tx);
+      await this.patientsRepository.incrementTokenVersion(patientId, tx);
+    });
   }
 
   // ── HELPERS ─────────────────────────────────────────────────────────
@@ -223,6 +279,11 @@ export class PatientAuthService {
     await this.otpSender.sendOtp(phone, code);
   }
 
+  private async simulateOtpHashWork(): Promise<void> {
+    const length = this.configService.get<number>('otp.length')!;
+    await bcrypt.hash(generateOtpCode(length), OTP_SALT_ROUNDS);
+  }
+
   private async verifyOtpOrThrow(
     phone: string,
     code: string,
@@ -246,7 +307,10 @@ export class PatientAuthService {
 
     const matches = await bcrypt.compare(code, otp.codeHash);
     if (!matches) {
-      await this.patientOtpRepository.incrementAttempts(otp.id);
+      await this.patientOtpRepository.incrementAttemptsIfAllowed(
+        otp.id,
+        otp.maxAttempts,
+      );
       throw new UnauthorizedException('Mã OTP không đúng');
     }
 
@@ -255,9 +319,10 @@ export class PatientAuthService {
 
   private async issueTokens(
     patientId: string,
-    phone: string,
+    tokenVersion: number,
+    db?: Prisma.TransactionClient,
   ): Promise<PatientTokenResponseDto> {
-    const payload: PatientJwtPayload = { sub: patientId, phone };
+    const payload: PatientJwtPayload = { sub: patientId, tokenVersion };
 
     const accessExpiresIn = this.configService.get<string>(
       'jwt.patientAccessExpiresIn',
@@ -274,14 +339,18 @@ export class PatientAuthService {
       this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('jwt.patientRefreshSecret'),
         expiresIn: refreshExpiresIn,
+        jwtid: randomUUID(),
       }),
     ]);
 
-    await this.patientSessionRepository.create({
-      patient: { connect: { id: patientId } },
-      refreshTokenHash: hashToken(refreshToken),
-      expiresAt: this.computeExpiryDate(refreshExpiresIn),
-    });
+    await this.patientSessionRepository.create(
+      {
+        patient: { connect: { id: patientId } },
+        refreshTokenHash: hashToken(refreshToken),
+        expiresAt: this.computeExpiryDate(refreshExpiresIn),
+      },
+      db,
+    );
 
     return { accessToken, refreshToken };
   }

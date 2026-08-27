@@ -27,6 +27,8 @@
 
 ### Slice 1 — Authentication, session và authorization foundation
 
+**Cập nhật 2026-08-27:** foundation đã triển khai và kiểm chứng local; các quyết định role/scope, multi-replica store và production gate còn mở được ghi tại [slice-1-implementation.md](slice-1-implementation.md).
+
 **Phạm vi:** Staff/Patient/Device auth, user, role/permission/scope, token storage/revoke/rate limit.
 
 - Bảo toàn: login/OTP/refresh/logout hiện hữu.

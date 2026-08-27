@@ -74,8 +74,13 @@ export class UsersService {
     return UsersMapper.toResponseDto(user);
   }
 
+  async findDoctorById(id: string): Promise<UserResponseDto> {
+    const user = await this.findDoctorOrThrow(id);
+    return UsersMapper.toResponseDto(user);
+  }
+
   async setStatus(id: string, status: UserStatus): Promise<UserResponseDto> {
-    await this.findOrThrow(id);
+    await this.findDoctorOrThrow(id);
     await this.usersRepository.updateStatus(id, status);
     const updated = await this.usersRepository.findById(id);
     return UsersMapper.toResponseDto(updated!);
@@ -109,6 +114,14 @@ export class UsersService {
     const user = await this.usersRepository.findById(id);
     if (!user) {
       throw new NotFoundException(`User #${id} không tồn tại`);
+    }
+    return user;
+  }
+
+  private async findDoctorOrThrow(id: string) {
+    const user = await this.findOrThrow(id);
+    if (user.role !== UserRole.DOCTOR) {
+      throw new NotFoundException(`Doctor #${id} không tồn tại`);
     }
     return user;
   }

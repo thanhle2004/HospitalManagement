@@ -15,24 +15,18 @@ export class RefreshTokenRepository {
     return db.refreshToken.create({ data });
   }
 
-  findValid(
+  consumeValid(
     userId: string,
     tokenHash: string,
     db: Db = this.prisma,
-  ): Promise<RefreshToken | null> {
-    return db.refreshToken.findFirst({
+  ): Promise<Prisma.BatchPayload> {
+    return db.refreshToken.updateMany({
       where: {
         userId,
         tokenHash,
         revokedAt: null,
         expiresAt: { gt: new Date() },
       },
-    });
-  }
-
-  revoke(id: string, db: Db = this.prisma): Promise<RefreshToken> {
-    return db.refreshToken.update({
-      where: { id },
       data: { revokedAt: new Date() },
     });
   }

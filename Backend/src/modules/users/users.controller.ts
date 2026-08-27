@@ -54,7 +54,7 @@ export class UsersController {
   @ApiOperation({ summary: '[Admin] Chi tiết 1 Doctor' })
   @ApiOkResponse({ type: UserResponseDto })
   getDoctor(@Param('id') id: string) {
-    return this.usersService.findById(id);
+    return this.usersService.findDoctorById(id);
   }
 
   @Roles(UserRole.ADMIN)

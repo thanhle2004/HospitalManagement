@@ -5,8 +5,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { UserRole, UserStatus } from '@prisma/client';
+import { Prisma, UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
+import { PrismaService } from '../../prisma/prisma.service';
 import { UsersRepository } from '../users/users.repository';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 import { LoginDto } from './dto/login.dto';
@@ -22,15 +24,22 @@ export class AuthService {
     private readonly refreshTokenRepository: RefreshTokenRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
-  async login(dto: LoginDto): Promise<TokenResponseDto> {
+  async login(
+    dto: LoginDto,
+    concealAccountState = false,
+  ): Promise<TokenResponseDto> {
     const user = await this.usersRepository.findByEmail(dto.email);
     if (!user) {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
     if (user.status !== UserStatus.ACTIVE) {
+      if (concealAccountState) {
+        throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      }
       throw new ForbiddenException(
         'Tài khoản đã bị khoá hoặc vô hiệu hoá — liên hệ Admin',
       );
@@ -46,7 +55,7 @@ export class AuthService {
 
     await this.usersRepository.updateLastLogin(user.id);
 
-    return this.issueTokens(user.id, user.email, user.role);
+    return this.issueTokens(user.id, user.role, user.tokenVersion);
   }
 
   /**
@@ -67,37 +76,50 @@ export class AuthService {
       );
     }
 
-    const tokenHash = hashToken(dto.refreshToken);
-    const stored = await this.refreshTokenRepository.findValid(
-      payload.sub,
-      tokenHash,
-    );
-    if (!stored) {
-      throw new UnauthorizedException(
-        'Refresh token đã bị thu hồi hoặc không tồn tại',
+    return this.prisma.transaction(async (tx) => {
+      const tokenHash = hashToken(dto.refreshToken);
+      const user = await this.usersRepository.findById(payload.sub, tx);
+      if (!user || user.status !== UserStatus.ACTIVE) {
+        throw new ForbiddenException('Tài khoản không còn hoạt động');
+      }
+      if ((payload.tokenVersion ?? 0) !== user.tokenVersion) {
+        throw new UnauthorizedException('Phiên đăng nhập đã bị thu hồi');
+      }
+
+      const consumed = await this.refreshTokenRepository.consumeValid(
+        payload.sub,
+        tokenHash,
+        tx,
       );
-    }
+      if (consumed.count < 1) {
+        throw new UnauthorizedException(
+          'Refresh token đã bị thu hồi hoặc đã được sử dụng',
+        );
+      }
 
-    await this.refreshTokenRepository.revoke(stored.id);
-
-    const user = await this.usersRepository.findById(payload.sub);
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new ForbiddenException('Tài khoản không còn hoạt động');
-    }
-
-    return this.issueTokens(user.id, user.email, user.role);
+      return this.issueTokens(
+        user.id,
+        user.role,
+        user.tokenVersion,
+        tx,
+      );
+    });
   }
 
   async logout(userId: string): Promise<void> {
-    await this.refreshTokenRepository.revokeAllForUser(userId);
+    await this.prisma.transaction(async (tx) => {
+      await this.refreshTokenRepository.revokeAllForUser(userId, tx);
+      await this.usersRepository.incrementTokenVersion(userId, tx);
+    });
   }
 
   private async issueTokens(
     userId: string,
-    email: string,
     role: UserRole,
+    tokenVersion: number,
+    db?: Prisma.TransactionClient,
   ): Promise<TokenResponseDto> {
-    const payload: JwtPayload = { sub: userId, email, role };
+    const payload: JwtPayload = { sub: userId, role, tokenVersion };
 
     const accessExpiresIn = this.configService.get<string>(
       'jwt.accessExpiresIn',
@@ -114,14 +136,18 @@ export class AuthService {
       this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('jwt.refreshSecret'),
         expiresIn: refreshExpiresIn,
+        jwtid: randomUUID(),
       }),
     ]);
 
-    await this.refreshTokenRepository.create({
-      user: { connect: { id: userId } },
-      tokenHash: hashToken(refreshToken),
-      expiresAt: this.computeExpiryDate(refreshExpiresIn),
-    });
+    await this.refreshTokenRepository.create(
+      {
+        user: { connect: { id: userId } },
+        tokenHash: hashToken(refreshToken),
+        expiresAt: this.computeExpiryDate(refreshExpiresIn),
+      },
+      db,
+    );
 
     return { accessToken, refreshToken };
   }

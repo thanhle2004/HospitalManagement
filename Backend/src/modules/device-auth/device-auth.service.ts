@@ -40,7 +40,10 @@ export class DeviceAuthService {
       lastHeartbeatAt: new Date(),
     });
 
-    const payload: DeviceJwtPayload = { sub: device.id, code: device.code };
+    const payload: DeviceJwtPayload = {
+      sub: device.id,
+      tokenVersion: device.tokenVersion,
+    };
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.get<string>('jwt.deviceAccessSecret'),
       expiresIn: this.configService.get<string>('jwt.deviceAccessExpiresIn'),

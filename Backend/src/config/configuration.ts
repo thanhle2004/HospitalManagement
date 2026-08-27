@@ -54,6 +54,12 @@ export default () => {
       ),
       maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS || '5', 10),
     },
+    security: {
+      authRateLimitEnabled: parseBoolean(
+        process.env.AUTH_RATE_LIMIT_ENABLED,
+        true,
+      ),
+    },
     routing: {
       qrExpiresInSeconds: parseInt(
         process.env.ROUTING_QR_EXPIRES_IN_SECONDS || '1800', // 30 phút

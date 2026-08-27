@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { useLogin } from "@/features/auth/hooks";
+import { useLogin, useSessionBootstrap } from "@/features/auth/hooks";
 import { useAuthStore } from "@/features/auth/store";
 import { ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,8 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const isHydrated = useAuthStore((s) => s.isHydrated);
+  useSessionBootstrap();
+  const isInitialized = useAuthStore((s) => s.isInitialized);
   const user = useAuthStore((s) => s.user);
   const login = useLogin();
 
@@ -31,12 +32,12 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) });
 
-  // Đã đăng nhập sẵn (còn token hợp lệ trong localStorage) -> vào thẳng dashboard
+  // Cookie HttpOnly còn phiên hợp lệ -> vào thẳng dashboard.
   useEffect(() => {
-    if (isHydrated && user) {
+    if (isInitialized && user) {
       router.replace(user.role === "ADMIN" ? "/admin" : "/doctor");
     }
-  }, [isHydrated, user, router]);
+  }, [isInitialized, user, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">

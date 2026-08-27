@@ -34,6 +34,65 @@ const checks: Check[] = [
           ) duplicate_groups`,
   },
   {
+    id: 'canonical_staff_email_duplicates',
+    severity: 'warning',
+    description: 'Staff emails collide after trim/lowercase normalization',
+    sql: `SELECT COUNT(*) AS issueCount
+          FROM (
+            SELECT LOWER(TRIM(email)) AS canonical_email
+            FROM users
+            GROUP BY canonical_email
+            HAVING COUNT(*) > 1
+          ) duplicate_groups`,
+  },
+  {
+    id: 'negative_token_versions',
+    severity: 'error',
+    description: 'Auth principals contain a negative token version',
+    sql: `SELECT
+            (SELECT COUNT(*) FROM users WHERE token_version < 0) +
+            (SELECT COUNT(*) FROM patients WHERE token_version < 0) +
+            (SELECT COUNT(*) FROM devices WHERE token_version < 0)
+            AS issueCount`,
+  },
+  {
+    id: 'duplicate_active_staff_refresh_hashes',
+    severity: 'error',
+    description: 'Multiple active Staff refresh rows share the same token hash',
+    sql: `SELECT COUNT(*) AS issueCount
+          FROM (
+            SELECT token_hash
+            FROM refresh_tokens
+            WHERE revoked_at IS NULL AND expires_at > NOW()
+            GROUP BY token_hash
+            HAVING COUNT(*) > 1
+          ) duplicate_groups`,
+  },
+  {
+    id: 'duplicate_active_patient_refresh_hashes',
+    severity: 'error',
+    description: 'Multiple active Patient sessions share the same refresh hash',
+    sql: `SELECT COUNT(*) AS issueCount
+          FROM (
+            SELECT refresh_token_hash
+            FROM patient_sessions
+            WHERE revoked_at IS NULL AND expires_at > NOW()
+            GROUP BY refresh_token_hash
+            HAVING COUNT(*) > 1
+          ) duplicate_groups`,
+  },
+  {
+    id: 'inactive_user_has_active_refresh',
+    severity: 'error',
+    description: 'Inactive or locked Staff still has an active refresh row',
+    sql: `SELECT COUNT(*) AS issueCount
+          FROM refresh_tokens rt
+          JOIN users u ON u.id = rt.user_id
+          WHERE rt.revoked_at IS NULL
+            AND rt.expires_at > NOW()
+            AND u.status <> 'ACTIVE'`,
+  },
+  {
     id: 'flow_dependency_self_reference',
     severity: 'error',
     description: 'Flow dependency points to itself',
