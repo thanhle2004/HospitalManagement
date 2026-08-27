@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   CircleAlert,
+  Eye,
   GitBranch,
   Pencil,
   Plus,
@@ -212,8 +213,8 @@ export default function ClinicServicesPage() {
                     <TableCell>
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="outline" size="sm" onClick={() => openWorkflow(service)}>
-                          <GitBranch className="h-4 w-4" />
-                          Thiết kế
+                          <Eye className="h-4 w-4" />
+                          Xem quy trình
                         </Button>
                         <Button
                           variant="ghost"

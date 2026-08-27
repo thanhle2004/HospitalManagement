@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import {
   ArrowDown,
   CircleAlert,
+  Eye,
   GitBranch,
   Loader2,
   Pencil,
   Plus,
+  Settings2,
   Trash2,
   X,
 } from "lucide-react";
@@ -25,6 +27,9 @@ import {
 } from "../hooks";
 import type { ClinicService, ServiceStep } from "../types";
 import { ServiceStepFormDialog } from "./service-step-form-dialog";
+import { ServiceWorkflowPreview } from "./service-workflow-preview";
+
+type WorkflowView = "preview" | "edit";
 
 interface ServiceWorkflowDialogProps {
   open: boolean;
@@ -51,6 +56,7 @@ export function ServiceWorkflowDialog({
   const [deleteTarget, setDeleteTarget] = useState<ServiceStep | null>(null);
   const [targetStepId, setTargetStepId] = useState("");
   const [requiredStepId, setRequiredStepId] = useState("");
+  const [view, setView] = useState<WorkflowView>("preview");
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -62,6 +68,7 @@ export function ServiceWorkflowDialog({
     setDeleteTarget(null);
     setTargetStepId("");
     setRequiredStepId("");
+    setView("preview");
     onOpenChange(false);
   };
 
@@ -109,8 +116,8 @@ export function ServiceWorkflowDialog({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           className="max-h-[92vh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto"
-          title={`Thiết kế quy trình · ${service.name}`}
-          description={`${service.code} — sắp xếp các bước và khai báo điều kiện cần hoàn tất trước.`}
+          title={`Quy trình dịch vụ · ${service.name}`}
+          description={`${service.code} — xem luồng phòng khám hoặc chuyển sang chế độ chỉnh sửa cấu hình.`}
         >
           {detail.isLoading && (
             <div className="flex min-h-64 items-center justify-center gap-2 text-sm text-slate-500">
@@ -133,7 +140,49 @@ export function ServiceWorkflowDialog({
           )}
 
           {detail.data && (
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
+            <div className="space-y-5">
+              <div className="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2 sm:flex-row sm:items-center">
+                <div className="flex rounded-lg bg-white p-1 shadow-sm" role="group" aria-label="Chế độ xem quy trình">
+                  <button
+                    type="button"
+                    onClick={() => setView("preview")}
+                    className={
+                      view === "preview"
+                        ? "inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-medium text-white sm:flex-none"
+                        : "inline-flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 sm:flex-none"
+                    }
+                    aria-pressed={view === "preview"}
+                  >
+                    <Eye className="h-4 w-4" />
+                    Sơ đồ quy trình
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setView("edit")}
+                    className={
+                      view === "edit"
+                        ? "inline-flex flex-1 items-center justify-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-xs font-medium text-white sm:flex-none"
+                        : "inline-flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 sm:flex-none"
+                    }
+                    aria-pressed={view === "edit"}
+                  >
+                    <Settings2 className="h-4 w-4" />
+                    Chỉnh sửa cấu hình
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 px-2 pb-1 sm:pb-0">
+                  <Badge variant="info">{steps.length} bước</Badge>
+                  <Badge variant="default">
+                    {steps.reduce((total, step) => total + step.dependsOn.length, 0)} ràng buộc
+                  </Badge>
+                </div>
+              </div>
+
+              {view === "preview" ? (
+                <ServiceWorkflowPreview steps={steps} />
+              ) : (
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
               <section className="space-y-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -364,7 +413,9 @@ export function ServiceWorkflowDialog({
                     </div>
                   </dl>
                 </div>
-              </aside>
+                  </aside>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
