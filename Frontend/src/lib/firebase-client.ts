@@ -24,5 +24,8 @@ export function getFirebasePhoneAuth(): Auth {
   firebaseApp = getApps().length > 0 ? getApp() : initializeApp(config);
   firebaseAuth = getAuth(firebaseApp);
   firebaseAuth.languageCode = "vi";
+  firebaseAuth.settings.appVerificationDisabledForTesting =
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_FIREBASE_AUTH_TESTING === "true";
   return firebaseAuth;
 }
