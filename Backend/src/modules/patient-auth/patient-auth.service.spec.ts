@@ -16,6 +16,9 @@ function makeConfig(): ConfigService {
     'jwt.patientRefreshSecret': 'patient-refresh-secret',
     'jwt.patientRefreshExpiresIn': '30d',
     'otp.length': 6,
+    'otp.expiresInSeconds': 300,
+    'otp.maxAttempts': 5,
+    'otp.resendCooldownSeconds': 60,
   };
   return {
     get: jest.fn((key: string) => values[key]),
@@ -23,6 +26,130 @@ function makeConfig(): ConfigService {
 }
 
 describe('PatientAuthService session safety', () => {
+  it('automatically selects the OTP purpose without exposing whether the phone exists', async () => {
+    const patientsRepository = {
+      findByPhone: jest.fn().mockResolvedValue({ id: 'patient-1' }),
+    };
+    const otpRepository = {
+      findLatest: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue(undefined),
+    };
+    const otpSender = { sendOtp: jest.fn().mockResolvedValue(undefined) };
+    const service = new PatientAuthService(
+      patientsRepository as unknown as PatientsRepository,
+      otpRepository as unknown as PatientOtpRepository,
+      {} as PatientSessionRepository,
+      otpSender as unknown as OtpSenderService,
+      {} as JwtService,
+      makeConfig(),
+      {} as PrismaService,
+    );
+
+    await expect(
+      service.requestPhoneOtp({ phone: '0900000001' }),
+    ).resolves.toEqual({
+      message: 'Nếu yêu cầu hợp lệ, mã OTP sẽ được gửi',
+    });
+    expect(otpRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phone: '0900000001',
+        purpose: OtpPurpose.LOGIN,
+        patient: { connect: { id: 'patient-1' } },
+      }),
+    );
+  });
+
+  it('returns a short-lived registration ticket only after a new phone passes OTP verification', async () => {
+    const codeHash = await bcrypt.hash('123456', 4);
+    const patientsRepository = { findByPhone: jest.fn().mockResolvedValue(null) };
+    const otpRepository = {
+      findValidForVerify: jest.fn().mockResolvedValue({
+        id: 'otp-1',
+        codeHash,
+        attempts: 0,
+        maxAttempts: 5,
+      }),
+      consumeIfUnused: jest.fn().mockResolvedValue({ count: 1 }),
+    };
+    const jwtService = { signAsync: jest.fn().mockResolvedValue('registration-ticket') };
+    const service = new PatientAuthService(
+      patientsRepository as unknown as PatientsRepository,
+      otpRepository as unknown as PatientOtpRepository,
+      {} as PatientSessionRepository,
+      {} as OtpSenderService,
+      jwtService as unknown as JwtService,
+      makeConfig(),
+      {} as PrismaService,
+    );
+
+    await expect(
+      service.verifyPhone({ phone: '0900000001', otp: '123456' }),
+    ).resolves.toEqual({
+      requiresRegistration: true,
+      registrationToken: 'registration-ticket',
+    });
+    expect(otpRepository.consumeIfUnused).toHaveBeenCalledWith('otp-1');
+    expect(jwtService.signAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phone: '0900000001',
+        purpose: 'PATIENT_REGISTRATION',
+      }),
+      expect.objectContaining({ expiresIn: '15m' }),
+    );
+  });
+
+  it('creates a new patient from a valid registration ticket and starts a session atomically', async () => {
+    const tx = { marker: 'transaction' };
+    const patientsRepository = {
+      findByPhone: jest.fn().mockResolvedValue(null),
+      findDefaultPatientType: jest.fn().mockResolvedValue({ id: 1 }),
+      create: jest.fn().mockResolvedValue({ id: 'patient-2', tokenVersion: 0 }),
+    };
+    const sessionRepository = { create: jest.fn().mockResolvedValue(undefined) };
+    const jwtService = {
+      verifyAsync: jest.fn().mockResolvedValue({
+        phone: '0900000002',
+        purpose: 'PATIENT_REGISTRATION',
+      }),
+      signAsync: jest
+        .fn()
+        .mockResolvedValueOnce('patient-access')
+        .mockResolvedValueOnce('patient-refresh'),
+    };
+    const prisma = { transaction: jest.fn((callback) => callback(tx)) };
+    const service = new PatientAuthService(
+      patientsRepository as unknown as PatientsRepository,
+      {} as PatientOtpRepository,
+      sessionRepository as unknown as PatientSessionRepository,
+      {} as OtpSenderService,
+      jwtService as unknown as JwtService,
+      makeConfig(),
+      prisma as unknown as PrismaService,
+    );
+
+    await expect(
+      service.completePhoneRegistration({
+        registrationToken: 'registration-ticket',
+        fullName: 'Nguyễn Văn An',
+      }),
+    ).resolves.toEqual({
+      accessToken: 'patient-access',
+      refreshToken: 'patient-refresh',
+    });
+    expect(patientsRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        phone: '0900000002',
+        fullName: 'Nguyễn Văn An',
+        patientType: { connect: { id: 1 } },
+      }),
+      tx,
+    );
+    expect(sessionRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ patient: { connect: { id: 'patient-2' } } }),
+      tx,
+    );
+  });
+
   it('returns the same generic challenge response without sending OTP when account state mismatches', async () => {
     const patientsRepository = {
       findByPhone: jest.fn().mockResolvedValue({ id: 'patient-1' }),

@@ -9,7 +9,7 @@ import { VisitCard } from "@/features/patient-portal/components/visit-card";
 import { usePatientServices, usePatientVisits } from "@/features/patient-portal/hooks";
 
 const quickActions = [
-  { href: "/patient/services", label: "Đăng ký khám", caption: "Chọn dịch vụ", icon: CalendarPlus, color: "bg-teal-50 text-teal-700" },
+  { href: "/patient/services", label: "Đăng ký khám", caption: "Chọn dịch vụ", icon: CalendarPlus, color: "bg-sky-50 text-sky-700" },
   { href: "/patient/visits", label: "Lượt khám", caption: "Xem lịch sử", icon: ClipboardClock, color: "bg-amber-50 text-amber-700" },
   { href: "/patient/profile", label: "Hồ sơ", caption: "Thông tin của bạn", icon: UserRound, color: "bg-sky-50 text-sky-700" },
 ];
@@ -26,19 +26,19 @@ export default function PatientHomePage() {
   return (
     <div className="space-y-7">
       <section>
-        <p className="text-sm font-medium text-teal-700">Xin chào, {firstName} 👋</p>
+        <p className="text-sm font-medium text-sky-700">Xin chào, {firstName} 👋</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Hôm nay bạn cần gì?</h1>
         <p className="mt-1.5 text-sm leading-5 text-slate-500">Đăng ký và theo dõi quy trình khám ngay trên điện thoại.</p>
       </section>
 
       {visits.isLoading ? (
-        <div className="h-48 animate-pulse rounded-3xl bg-teal-100" />
+        <div className="h-48 animate-pulse rounded-3xl bg-sky-100" />
       ) : activeVisit ? (
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-900">Lượt khám hiện tại</h2>
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-teal-700">
-              <span className="size-1.5 animate-pulse rounded-full bg-teal-500" />
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-700">
+              <span className="size-1.5 animate-pulse rounded-full bg-sky-500" />
               Tự động cập nhật
             </span>
           </div>
@@ -47,13 +47,13 @@ export default function PatientHomePage() {
       ) : (
         <Link
           href="/patient/services"
-          className="block overflow-hidden rounded-3xl bg-gradient-to-br from-teal-600 to-teal-700 p-5 text-white shadow-lg shadow-teal-200/70"
+          className="block overflow-hidden rounded-3xl bg-gradient-to-br from-sky-600 to-sky-700 p-5 text-white shadow-lg shadow-sky-200/70"
         >
           <span className="grid size-11 place-items-center rounded-2xl bg-white/15">
             <CalendarPlus className="size-5" />
           </span>
           <h2 className="mt-5 text-lg font-bold">Bắt đầu lượt khám mới</h2>
-          <p className="mt-1.5 max-w-sm text-sm leading-5 text-teal-50">Chọn dịch vụ phù hợp, hệ thống sẽ hướng dẫn từng phòng cần đến.</p>
+          <p className="mt-1.5 max-w-sm text-sm leading-5 text-sky-50">Chọn dịch vụ phù hợp, hệ thống sẽ hướng dẫn từng phòng cần đến.</p>
           <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold">Xem dịch vụ <ArrowRight className="size-4" /></span>
         </Link>
       )}
@@ -80,7 +80,7 @@ export default function PatientHomePage() {
             <h2 className="text-sm font-bold text-slate-900">Dịch vụ nổi bật</h2>
             <p className="mt-0.5 text-xs text-slate-500">Chọn quy trình phù hợp với nhu cầu</p>
           </div>
-          <Link href="/patient/services" className="text-xs font-semibold text-teal-700">Xem tất cả</Link>
+          <Link href="/patient/services" className="text-xs font-semibold text-sky-700">Xem tất cả</Link>
         </div>
         {services.isLoading ? (
           <div className="space-y-3">{[1, 2].map((item) => <div key={item} className="h-32 animate-pulse rounded-3xl bg-slate-100" />)}</div>

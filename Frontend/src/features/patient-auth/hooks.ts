@@ -7,8 +7,8 @@ import { patientAuthApi } from "./api";
 import { usePatientAuthStore } from "./store";
 import type {
   OtpChallengeRequest,
-  VerifyLoginRequest,
-  VerifyRegisterRequest,
+  CompleteRegistrationRequest,
+  VerifyPhoneRequest,
 } from "./types";
 
 export function useOtpChallenge() {
@@ -17,21 +17,24 @@ export function useOtpChallenge() {
   });
 }
 
-export function useVerifyPatientLogin() {
+export function useVerifyPatientPhone() {
   const router = useRouter();
   return useMutation({
-    mutationFn: (payload: VerifyLoginRequest) => patientAuthApi.verifyLogin(payload),
-    onSuccess: (patient) => {
+    mutationFn: (payload: VerifyPhoneRequest) => patientAuthApi.verifyPhone(payload),
+    onSuccess: (result) => {
+      if ("requiresRegistration" in result) return;
+      const patient = result;
       usePatientAuthStore.getState().setPatient(patient);
       router.replace("/patient");
     },
   });
 }
 
-export function useVerifyPatientRegister() {
+export function useCompletePatientRegistration() {
   const router = useRouter();
   return useMutation({
-    mutationFn: (payload: VerifyRegisterRequest) => patientAuthApi.verifyRegister(payload),
+    mutationFn: (payload: CompleteRegistrationRequest) =>
+      patientAuthApi.completeRegistration(payload),
     onSuccess: (patient) => {
       usePatientAuthStore.getState().setPatient(patient);
       router.replace("/patient");

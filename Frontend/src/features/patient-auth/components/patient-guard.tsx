@@ -18,7 +18,7 @@ export function PatientGuard({ children }: { children: React.ReactNode }) {
 
   if (!isInitialized || !patient) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-teal-50 text-teal-800">
+      <div className="flex min-h-dvh items-center justify-center bg-sky-50 text-sky-800">
         <div className="flex flex-col items-center gap-3 text-sm font-medium">
           <span className="grid size-12 place-items-center rounded-2xl bg-white shadow-sm">
             <HeartPulse className="size-6 animate-pulse" />

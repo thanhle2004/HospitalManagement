@@ -20,19 +20,17 @@ export interface PatientProfile {
 
 export interface OtpChallengeRequest {
   phone: string;
-  purpose: "LOGIN" | "REGISTER";
 }
 
-export interface VerifyLoginRequest {
-  action: "VERIFY_LOGIN";
+export interface VerifyPhoneRequest {
+  action: "VERIFY_PHONE";
   phone: string;
   otp: string;
 }
 
-export interface VerifyRegisterRequest {
-  action: "VERIFY_REGISTER";
-  phone: string;
-  otp: string;
+export interface CompleteRegistrationRequest {
+  action: "COMPLETE_REGISTRATION";
+  registrationToken: string;
   fullName: string;
   gender?: PatientGender;
   birthday?: string;
@@ -41,3 +39,7 @@ export interface VerifyRegisterRequest {
   identityNumber?: string;
   emergencyContact?: string;
 }
+
+export type VerifyPhoneResult =
+  | PatientProfile
+  | { requiresRegistration: true; registrationToken: string };

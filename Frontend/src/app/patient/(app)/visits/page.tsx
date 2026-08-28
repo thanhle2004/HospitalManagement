@@ -32,7 +32,7 @@ export default function PatientVisitsPage() {
             key={value}
             type="button"
             onClick={() => setFilter(value)}
-            className={`h-10 rounded-xl text-sm font-semibold transition ${filter === value ? "bg-white text-teal-700 shadow-sm" : "text-slate-500"}`}
+            className={`h-10 rounded-xl text-sm font-semibold transition ${filter === value ? "bg-white text-sky-700 shadow-sm" : "text-slate-500"}`}
           >
             {value === "ACTIVE" ? "Đang thực hiện" : "Lịch sử"}
           </button>
@@ -45,10 +45,10 @@ export default function PatientVisitsPage() {
         <PatientState variant="error" description="Không thể lấy dữ liệu lượt khám lúc này." />
       ) : filtered.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-7 text-center">
-          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-teal-50 text-teal-700"><CalendarPlus className="size-5" /></span>
+          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-sky-50 text-sky-700"><CalendarPlus className="size-5" /></span>
           <h2 className="mt-3 text-sm font-semibold text-slate-900">{filter === "ACTIVE" ? "Bạn chưa có lượt khám đang thực hiện" : "Chưa có lịch sử khám"}</h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">{filter === "ACTIVE" ? "Chọn một dịch vụ để bắt đầu quy trình khám." : "Lượt khám đã hoàn tất sẽ được lưu tại đây."}</p>
-          {filter === "ACTIVE" ? <Link href="/patient/services" className="mt-4 inline-flex h-10 items-center rounded-xl bg-teal-600 px-4 text-sm font-semibold text-white">Chọn dịch vụ</Link> : null}
+          {filter === "ACTIVE" ? <Link href="/patient/services" className="mt-4 inline-flex h-10 items-center rounded-xl bg-sky-600 px-4 text-sm font-semibold text-white">Chọn dịch vụ</Link> : null}
         </div>
       ) : (
         <div className="space-y-3">{filtered.map((visit) => <VisitCard key={visit.id} visit={visit} />)}</div>

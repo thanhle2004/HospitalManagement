@@ -21,6 +21,8 @@ import { PatientJwtPayload } from './interfaces/patient-jwt-payload.interface';
 import type { Request } from 'express';
 import { AuthRateLimitService } from '../../common/security/auth-rate-limit.service';
 import { getClientAddress } from '../../common/http/client-address.util';
+import { PatientPhoneVerificationResponseDto } from './dto/patient-phone-verification-response.dto';
+import { CompletePatientRegistrationDto } from './dto/complete-patient-registration.dto';
 
 @ApiTags('Patient Auth')
 @Public() // Toàn bộ controller này bỏ qua JwtAuthGuard (Staff, global) — patient dùng token khác hẳn
@@ -30,6 +32,35 @@ export class PatientAuthController {
     private readonly patientAuthService: PatientAuthService,
     private readonly rateLimit: AuthRateLimitService,
   ) {}
+
+  @Post('phone/request-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Gửi OTP; server tự xác định số cũ để đăng nhập hay số mới để đăng ký',
+  })
+  requestPhoneOtp(@Req() request: Request, @Body() dto: RequestOtpDto) {
+    this.limitOtpRequest(request, dto.phone);
+    return this.patientAuthService.requestPhoneOtp(dto);
+  }
+
+  @Post('phone/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Xác thực OTP và tự đăng nhập hoặc yêu cầu hoàn thiện hồ sơ',
+  })
+  @ApiOkResponse({ type: PatientPhoneVerificationResponseDto })
+  verifyPhone(@Req() request: Request, @Body() dto: VerifyLoginDto) {
+    this.limitOtpVerify(request, dto.phone);
+    return this.patientAuthService.verifyPhone(dto);
+  }
+
+  @Post('phone/register')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Hoàn thiện hồ sơ sau khi số điện thoại mới đã xác thực OTP' })
+  @ApiOkResponse({ type: PatientTokenResponseDto })
+  completePhoneRegistration(@Body() dto: CompletePatientRegistrationDto) {
+    return this.patientAuthService.completePhoneRegistration(dto);
+  }
 
   @Post('register/request-otp')
   @HttpCode(HttpStatus.OK)

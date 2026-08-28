@@ -45,7 +45,7 @@ export default function PatientServicesPage() {
       ) : (
         <>
           <div className="mb-3 flex items-center gap-2 text-xs text-slate-500">
-            <Stethoscope className="size-4 text-teal-600" />
+            <Stethoscope className="size-4 text-sky-600" />
             {filtered.length} dịch vụ đang hoạt động
           </div>
           <div className="space-y-3">{filtered.map((service) => <ServiceCard key={service.id} service={service} />)}</div>

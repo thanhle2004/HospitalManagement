@@ -24,8 +24,18 @@ import { PatientRefreshTokenDto } from './dto/patient-refresh-token.dto';
 import { PatientTokenResponseDto } from './dto/patient-token-response.dto';
 import { PatientJwtPayload } from './interfaces/patient-jwt-payload.interface';
 import { RequestOtpChallengeDto } from './dto/request-otp-challenge.dto';
+import {
+  PatientPhoneVerificationResponse,
+} from './dto/patient-phone-verification-response.dto';
+import { CompletePatientRegistrationDto } from './dto/complete-patient-registration.dto';
 
 const OTP_SALT_ROUNDS = 10;
+const REGISTRATION_TOKEN_PURPOSE = 'PATIENT_REGISTRATION';
+
+interface PatientRegistrationTokenPayload {
+  phone: string;
+  purpose: typeof REGISTRATION_TOKEN_PURPOSE;
+}
 
 @Injectable()
 export class PatientAuthService {
@@ -69,6 +79,125 @@ export class PatientAuthService {
 
     await this.createAndSendOtp(dto.phone, dto.purpose, patient?.id ?? null);
     return genericResponse;
+  }
+
+  /**
+   * Luồng mobile thống nhất: server tự xác định OTP dùng để đăng nhập hay
+   * đăng ký nhưng luôn trả cùng một thông báo, không làm lộ số đã tồn tại.
+   */
+  async requestPhoneOtp(dto: RequestOtpDto): Promise<{ message: string }> {
+    const genericResponse = { message: 'Nếu yêu cầu hợp lệ, mã OTP sẽ được gửi' };
+    const patient = await this.patientsRepository.findByPhone(dto.phone);
+    const purpose = patient ? OtpPurpose.LOGIN : OtpPurpose.REGISTER;
+
+    try {
+      await this.assertResendCooldown(dto.phone, purpose);
+    } catch (error) {
+      if (error instanceof BadRequestException) return genericResponse;
+      throw error;
+    }
+
+    await this.createAndSendOtp(dto.phone, purpose, patient?.id ?? null);
+    return genericResponse;
+  }
+
+  /**
+   * Chỉ sau khi OTP hợp lệ mới trả kết quả số cũ/mới. Số cũ nhận phiên đăng
+   * nhập ngay; số mới nhận ticket ký số ngắn hạn để hoàn thiện hồ sơ.
+   */
+  async verifyPhone(
+    dto: VerifyLoginDto,
+  ): Promise<PatientPhoneVerificationResponse> {
+    const patient = await this.patientsRepository.findByPhone(dto.phone);
+    const purpose = patient ? OtpPurpose.LOGIN : OtpPurpose.REGISTER;
+    const otp = await this.verifyOtpOrThrow(dto.phone, dto.otp, purpose);
+
+    if (!patient) {
+      const consumed = await this.patientOtpRepository.consumeIfUnused(otp.id);
+      if (consumed.count !== 1) {
+        throw new UnauthorizedException('Mã OTP đã được sử dụng');
+      }
+
+      const registrationToken = await this.jwtService.signAsync(
+        { phone: dto.phone, purpose: REGISTRATION_TOKEN_PURPOSE },
+        {
+          secret: this.registrationTokenSecret(),
+          expiresIn: '15m',
+          jwtid: randomUUID(),
+        },
+      );
+      return { requiresRegistration: true, registrationToken };
+    }
+
+    return this.prisma.transaction(async (tx) => {
+      const consumed = await this.patientOtpRepository.consumeIfUnused(
+        otp.id,
+        tx,
+      );
+      if (consumed.count !== 1) {
+        throw new UnauthorizedException('Mã OTP đã được sử dụng');
+      }
+
+      const tokens = await this.issueTokens(
+        patient.id,
+        patient.tokenVersion,
+        tx,
+      );
+      return { requiresRegistration: false, ...tokens };
+    });
+  }
+
+  async completePhoneRegistration(
+    dto: CompletePatientRegistrationDto,
+  ): Promise<PatientTokenResponseDto> {
+    let payload: PatientRegistrationTokenPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<PatientRegistrationTokenPayload>(
+        dto.registrationToken,
+        { secret: this.registrationTokenSecret() },
+      );
+    } catch {
+      throw new UnauthorizedException(
+        'Phiên đăng ký đã hết hạn — vui lòng xác thực lại số điện thoại',
+      );
+    }
+
+    if (payload.purpose !== REGISTRATION_TOKEN_PURPOSE || !payload.phone) {
+      throw new UnauthorizedException('Mã xác nhận đăng ký không hợp lệ');
+    }
+
+    const existing = await this.patientsRepository.findByPhone(payload.phone);
+    if (existing) {
+      throw new ConflictException(
+        'Số điện thoại đã có hồ sơ — vui lòng xác thực lại để đăng nhập',
+      );
+    }
+
+    const patientType = await this.patientsRepository.findDefaultPatientType();
+    if (!patientType) {
+      throw new BadRequestException(
+        'Chưa có loại bệnh nhân mặc định — vui lòng liên hệ quản trị viên',
+      );
+    }
+
+    return this.prisma.transaction(async (tx) => {
+      const patient = await this.patientsRepository.create(
+        {
+          phone: payload.phone,
+          fullName: dto.fullName,
+          gender: dto.gender,
+          birthday: dto.birthday,
+          email: dto.email,
+          address: dto.address,
+          identityNumber: dto.identityNumber,
+          emergencyContact: dto.emergencyContact,
+          patientType: { connect: { id: patientType.id } },
+        },
+        tx,
+      );
+
+      return this.issueTokens(patient.id, patient.tokenVersion, tx);
+    });
   }
 
   // ── ĐĂNG KÝ (REGISTER) ──────────────────────────────────────────────
@@ -372,5 +501,9 @@ export class PatientAuthService {
     };
 
     return new Date(now + value * unitMs[match[2]]);
+  }
+
+  private registrationTokenSecret(): string {
+    return `${this.configService.get<string>('jwt.patientAccessSecret')}:registration`;
   }
 }

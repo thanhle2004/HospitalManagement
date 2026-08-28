@@ -34,12 +34,12 @@ export default function PatientProfilePage() {
     <div>
       <PatientPageHeader title="Hồ sơ cá nhân" description="Thông tin dùng trong quá trình tiếp nhận và khám bệnh." />
 
-      <section className="rounded-3xl bg-gradient-to-br from-teal-600 to-teal-700 p-5 text-white shadow-lg shadow-teal-200/60">
+      <section className="rounded-3xl bg-gradient-to-br from-sky-600 to-sky-700 p-5 text-white shadow-lg shadow-sky-200/60">
         <div className="flex items-center gap-4">
           <span className="grid size-16 shrink-0 place-items-center rounded-3xl bg-white/15 text-2xl font-bold ring-1 ring-white/20">{initial}</span>
           <div className="min-w-0">
             <h1 className="truncate text-xl font-bold">{patient.fullName}</h1>
-            <p className="mt-1 text-sm text-teal-50">{patient.patientType.name}</p>
+            <p className="mt-1 text-sm text-sky-50">{patient.patientType.name}</p>
             <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold"><ShieldCheck className="size-3" />Hồ sơ đã xác thực</span>
           </div>
         </div>
@@ -55,7 +55,7 @@ export default function PatientProfilePage() {
 
       <section className="mt-5 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm">
         <div className="flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-teal-50 text-teal-700"><ShieldCheck className="size-5" /></span>
+          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sky-700"><ShieldCheck className="size-5" /></span>
           <div className="flex-1">
             <h2 className="text-sm font-semibold text-slate-900">Quyền riêng tư và bảo mật</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">Hồ sơ chỉ được dùng cho tiếp nhận, điều phối và chăm sóc sức khoẻ của bạn.</p>

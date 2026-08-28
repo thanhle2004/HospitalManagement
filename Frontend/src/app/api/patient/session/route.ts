@@ -18,7 +18,11 @@ interface ApiEnvelope<T> {
   data?: T;
 }
 
-type VerifyAction = "VERIFY_LOGIN" | "VERIFY_REGISTER";
+type PatientSessionAction = "VERIFY_PHONE" | "COMPLETE_REGISTRATION";
+
+type PhoneVerificationData =
+  | { requiresRegistration: true; registrationToken: string }
+  | ({ requiresRegistration: false } & PatientTokens);
 
 async function currentPatient(accessToken: string): Promise<Response> {
   return backendFetch("/patients/me", {}, accessToken);
@@ -54,9 +58,11 @@ export async function GET(): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   if (!isSameOriginMutation(request)) return forbiddenOriginResponse();
 
-  let payload: Record<string, unknown> & { action?: VerifyAction };
+  let payload: Record<string, unknown> & { action?: PatientSessionAction };
   try {
-    payload = (await request.json()) as Record<string, unknown> & { action?: VerifyAction };
+    payload = (await request.json()) as Record<string, unknown> & {
+      action?: PatientSessionAction;
+    };
   } catch {
     return Response.json(
       { success: false, statusCode: 400, message: "Dữ liệu không hợp lệ" },
@@ -66,10 +72,10 @@ export async function POST(request: Request): Promise<Response> {
 
   const { action, ...credentials } = payload;
   const endpoint =
-    action === "VERIFY_LOGIN"
-      ? "/patient-auth/login/verify"
-      : action === "VERIFY_REGISTER"
-        ? "/patient-auth/register/verify"
+    action === "VERIFY_PHONE"
+      ? "/patient-auth/phone/verify"
+      : action === "COMPLETE_REGISTRATION"
+        ? "/patient-auth/phone/register"
         : null;
   if (!endpoint) {
     return Response.json(
@@ -85,9 +91,11 @@ export async function POST(request: Request): Promise<Response> {
   });
   if (!response.ok) return copyBackendResponse(response);
 
-  let envelope: ApiEnvelope<PatientTokens>;
+  let envelope: ApiEnvelope<PatientTokens | PhoneVerificationData>;
   try {
-    envelope = (await response.json()) as ApiEnvelope<PatientTokens>;
+    envelope = (await response.json()) as ApiEnvelope<
+      PatientTokens | PhoneVerificationData
+    >;
   } catch {
     return Response.json(
       { success: false, statusCode: 502, message: "Backend trả dữ liệu không hợp lệ" },
@@ -98,8 +106,17 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json(envelope, { status: envelope.statusCode || 502 });
   }
 
-  await setPatientSessionCookies(envelope.data);
-  const profileResponse = await currentPatient(envelope.data.accessToken);
+  if (
+    action === "VERIFY_PHONE" &&
+    "requiresRegistration" in envelope.data &&
+    envelope.data.requiresRegistration
+  ) {
+    return Response.json(envelope, { status: envelope.statusCode || 200 });
+  }
+
+  const tokens = envelope.data as PatientTokens;
+  await setPatientSessionCookies(tokens);
+  const profileResponse = await currentPatient(tokens.accessToken);
   if (!profileResponse.ok) await clearPatientSessionCookies();
   return copyBackendResponse(profileResponse);
 }

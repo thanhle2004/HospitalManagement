@@ -3,8 +3,9 @@ import { usePatientAuthStore } from "./store";
 import type {
   OtpChallengeRequest,
   PatientProfile,
-  VerifyLoginRequest,
-  VerifyRegisterRequest,
+  CompleteRegistrationRequest,
+  VerifyPhoneRequest,
+  VerifyPhoneResult,
 } from "./types";
 
 export async function patientRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
@@ -21,17 +22,17 @@ export async function patientRequest<T>(url: string, options: RequestInit = {}):
 export const patientAuthApi = {
   requestOtp: (payload: OtpChallengeRequest) =>
     patientRequest<{ message: string }>(
-      "/api/patient/backend/api/v1/patient-auth/otp-challenges",
+      "/api/patient/backend/patient-auth/phone/request-otp",
       { method: "POST", body: JSON.stringify(payload) },
     ),
 
-  verifyLogin: (payload: VerifyLoginRequest) =>
-    patientRequest<PatientProfile>("/api/patient/session", {
+  verifyPhone: (payload: VerifyPhoneRequest) =>
+    patientRequest<VerifyPhoneResult>("/api/patient/session", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
 
-  verifyRegister: (payload: VerifyRegisterRequest) =>
+  completeRegistration: (payload: CompleteRegistrationRequest) =>
     patientRequest<PatientProfile>("/api/patient/session", {
       method: "POST",
       body: JSON.stringify(payload),

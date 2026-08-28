@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { CalendarDays, HeartPulse, Home, Stethoscope, UserRound } from "lucide-react";
+import { CalendarDays, Home, Stethoscope, UserRound } from "lucide-react";
 import { usePatientAuthStore } from "@/features/patient-auth/store";
 import { cn } from "@/lib/utils";
 
@@ -23,26 +24,24 @@ export function PatientShell({ children }: { children: React.ReactNode }) {
   const initial = patient?.fullName.trim().charAt(0).toUpperCase() || "B";
 
   return (
-    <div className="min-h-dvh bg-[#eef7f5] text-slate-900">
-      <div className="mx-auto min-h-dvh max-w-xl bg-[#f8fbfa] shadow-[0_0_60px_rgba(15,118,110,0.08)]">
-        <header className="sticky top-0 z-30 border-b border-teal-100/80 bg-[#f8fbfa]/95 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl">
+    <div className="min-h-dvh bg-slate-100 text-slate-900">
+      <div className="mx-auto min-h-dvh max-w-xl bg-slate-50 shadow-[0_0_60px_rgba(15,23,42,0.08)]">
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl">
           <div className="flex h-11 items-center justify-between">
             <Link href="/patient" className="flex items-center gap-2.5" aria-label="Về trang chủ">
-              <span className="grid size-9 place-items-center rounded-xl bg-teal-600 text-white shadow-sm shadow-teal-200">
-                <HeartPulse className="size-5" />
-              </span>
+              <Image src="/logo.png" alt="Chilling Hospital Logo" width={36} height={36} className="size-9" priority />
               <span>
-                <span className="block text-[15px] font-bold leading-4 tracking-tight text-slate-950">
-                  HospitalCare
+                <span className="block text-[15px] font-bold leading-4 tracking-tight text-sky-900">
+                  Chilling Hospital
                 </span>
-                <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-[0.16em] text-teal-700">
-                  Đồng hành cùng bạn
+                <span className="mt-0.5 block text-[10px] text-sky-600">
+                  Smart Care, Chill Life
                 </span>
               </span>
             </Link>
             <Link
               href="/patient/profile"
-              className="grid size-9 place-items-center rounded-full bg-teal-100 text-sm font-bold text-teal-800 ring-2 ring-white"
+              className="grid size-9 place-items-center rounded-full bg-sky-100 text-sm font-bold text-sky-800 ring-2 ring-white"
               aria-label="Mở hồ sơ cá nhân"
             >
               {initial}
@@ -66,7 +65,7 @@ export function PatientShell({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   className={cn(
                     "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-medium transition-colors",
-                    active ? "bg-teal-50 text-teal-700" : "text-slate-500 hover:text-slate-800",
+                    active ? "bg-sky-100 text-sky-900" : "text-slate-500 hover:text-slate-800",
                   )}
                   aria-current={active ? "page" : undefined}
                 >

@@ -23,7 +23,7 @@ function stepIcon(status: VisitStepStatus) {
 
 function stepTone(status: VisitStepStatus): string {
   if (status === "COMPLETED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "IN_PROGRESS") return "border-teal-200 bg-teal-50 text-teal-700";
+  if (status === "IN_PROGRESS") return "border-sky-200 bg-sky-50 text-sky-700";
   if (["ASSIGNED", "CHECKED_IN", "READY"].includes(status)) return "border-amber-200 bg-amber-50 text-amber-700";
   if (status === "CANCELLED") return "border-red-200 bg-red-50 text-red-600";
   return "border-slate-200 bg-slate-50 text-slate-400";
@@ -76,11 +76,11 @@ export default function PatientVisitDetailPage({ params }: { params: Promise<{ i
             <span>{progress}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-teal-500 transition-all" style={{ width: `${progress}%` }} />
+            <div className="h-full rounded-full bg-sky-500 transition-all" style={{ width: `${progress}%` }} />
           </div>
         </div>
         <div className="mt-4 flex items-center gap-1.5 text-[11px] text-slate-500">
-          <RefreshCw className="size-3.5 text-teal-600" />
+          <RefreshCw className="size-3.5 text-sky-600" />
           Tự động cập nhật mỗi 5 giây
         </div>
       </section>
@@ -110,7 +110,7 @@ export default function PatientVisitDetailPage({ params }: { params: Promise<{ i
                   className={cn(
                     "min-w-40 snap-start rounded-2xl border p-3 text-left transition",
                     currentStep.id === step.id
-                      ? "border-teal-500 bg-teal-50 ring-2 ring-teal-100"
+                      ? "border-sky-500 bg-sky-50 ring-2 ring-sky-100"
                       : "border-slate-200 bg-white",
                   )}
                 >
@@ -128,15 +128,15 @@ export default function PatientVisitDetailPage({ params }: { params: Promise<{ i
         <section className="mt-5 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-xl shadow-slate-300/60">
           <div className="p-5">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-teal-300">Bước hiện tại</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sky-300">Bước hiện tại</p>
               <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold">{visitStepStatusLabel[currentStep.status]}</span>
             </div>
             <h2 className="mt-4 text-xl font-bold">{currentStep.roomType.name}</h2>
             {currentStep.assignment ? (
               <div className="mt-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-sm">
-                <DoorOpen className="size-4.5 text-teal-300" />
+                <DoorOpen className="size-4.5 text-sky-300" />
                 <span>Phòng {currentStep.assignment.room.roomNumber} · {currentStep.assignment.room.name}</span>
-                <MapPin className="size-4.5 text-teal-300" />
+                <MapPin className="size-4.5 text-sky-300" />
                 <span className="text-slate-300">Đến đúng phòng và đưa mã QR cho thiết bị check-in.</span>
               </div>
             ) : (
@@ -183,7 +183,7 @@ export default function PatientVisitDetailPage({ params }: { params: Promise<{ i
               const Icon = stepIcon(step.status);
               const isCurrent = currentStep?.id === step.id;
               return (
-                <li key={step.id} className={cn("rounded-2xl border bg-white p-4", isCurrent ? "border-teal-300 ring-2 ring-teal-100" : "border-slate-200/80")}>
+                <li key={step.id} className={cn("rounded-2xl border bg-white p-4", isCurrent ? "border-sky-300 ring-2 ring-sky-100" : "border-slate-200/80")}>
                   <div className="flex items-start gap-3">
                     <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl border", stepTone(step.status))}><Icon className={cn("size-4", step.status === "READY" && "animate-spin")} /></span>
                     <div className="min-w-0 flex-1">

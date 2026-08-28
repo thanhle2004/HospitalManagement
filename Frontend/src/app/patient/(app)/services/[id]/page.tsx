@@ -55,10 +55,10 @@ export default function PatientServiceDetailPage({ params }: { params: Promise<{
     <div>
       <PatientPageHeader title="Chi tiết dịch vụ" backHref="/patient/services" />
 
-      <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-teal-600 to-teal-700 p-5 text-white shadow-lg shadow-teal-200/60">
+      <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-sky-600 to-sky-700 p-5 text-white shadow-lg shadow-sky-200/60">
         <span className="grid size-12 place-items-center rounded-2xl bg-white/15"><Stethoscope className="size-6" /></span>
         <h1 className="mt-5 text-xl font-bold leading-7">{service.data.name}</h1>
-        <p className="mt-2 text-sm leading-6 text-teal-50">{service.data.description || "Quy trình khám được thiết kế để điều phối bạn tới phòng phù hợp."}</p>
+        <p className="mt-2 text-sm leading-6 text-sky-50">{service.data.description || "Quy trình khám được thiết kế để điều phối bạn tới phòng phù hợp."}</p>
         <div className="mt-5 flex gap-2 text-[11px] font-semibold">
           <span className="rounded-full bg-white/15 px-3 py-1.5">{service.data.steps.length} bước khám</span>
           <span className="rounded-full bg-white/15 px-3 py-1.5">{new Set(service.data.steps.map((step) => step.roomType.id)).size} loại phòng</span>
@@ -98,7 +98,7 @@ export default function PatientServiceDetailPage({ params }: { params: Promise<{
               return (
                 <li key={step.id}>
                   <div className="flex gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-teal-50 text-sm font-bold text-teal-700">{index + 1}</span>
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-sky-50 text-sm font-bold text-sky-700">{index + 1}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="text-sm font-semibold text-slate-900">{step.roomType.name}</h3>
@@ -123,7 +123,7 @@ export default function PatientServiceDetailPage({ params }: { params: Promise<{
 
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex items-start gap-2.5 text-xs leading-5 text-slate-600">
-          <Info className="mt-0.5 size-4 shrink-0 text-teal-700" />
+          <Info className="mt-0.5 size-4 shrink-0 text-sky-700" />
           Khi đăng ký, hệ thống sẽ tạo một lượt khám và tự động điều phối phòng phù hợp cho từng bước.
         </div>
       </section>
@@ -136,7 +136,7 @@ export default function PatientServiceDetailPage({ params }: { params: Promise<{
         ) : (
           <Button
             size="lg"
-            className="w-full rounded-xl bg-teal-600 hover:bg-teal-700"
+            className="w-full rounded-xl bg-sky-600 hover:bg-sky-700"
             disabled={orderedSteps.length === 0}
             onClick={() => setConfirmOpen(true)}
           >
