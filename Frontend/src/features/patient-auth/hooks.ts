@@ -5,22 +5,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { patientAuthApi } from "./api";
 import { usePatientAuthStore } from "./store";
-import type {
-  OtpChallengeRequest,
-  CompleteRegistrationRequest,
-  VerifyPhoneRequest,
-} from "./types";
+import type { CompleteRegistrationRequest, VerifyFirebasePhoneRequest } from "./types";
 
-export function useOtpChallenge() {
-  return useMutation({
-    mutationFn: (payload: OtpChallengeRequest) => patientAuthApi.requestOtp(payload),
-  });
-}
-
-export function useVerifyPatientPhone() {
+export function useVerifyFirebasePhone() {
   const router = useRouter();
   return useMutation({
-    mutationFn: (payload: VerifyPhoneRequest) => patientAuthApi.verifyPhone(payload),
+    mutationFn: (payload: VerifyFirebasePhoneRequest) =>
+      patientAuthApi.verifyFirebasePhone(payload),
     onSuccess: (result) => {
       if ("requiresRegistration" in result) return;
       const patient = result;

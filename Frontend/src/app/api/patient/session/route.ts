@@ -18,7 +18,7 @@ interface ApiEnvelope<T> {
   data?: T;
 }
 
-type PatientSessionAction = "VERIFY_PHONE" | "COMPLETE_REGISTRATION";
+type PatientSessionAction = "VERIFY_FIREBASE_PHONE" | "COMPLETE_REGISTRATION";
 
 type PhoneVerificationData =
   | { requiresRegistration: true; registrationToken: string }
@@ -72,8 +72,8 @@ export async function POST(request: Request): Promise<Response> {
 
   const { action, ...credentials } = payload;
   const endpoint =
-    action === "VERIFY_PHONE"
-      ? "/patient-auth/phone/verify"
+    action === "VERIFY_FIREBASE_PHONE"
+      ? "/patient-auth/firebase/session"
       : action === "COMPLETE_REGISTRATION"
         ? "/patient-auth/phone/register"
         : null;
@@ -107,7 +107,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (
-    action === "VERIFY_PHONE" &&
+    action === "VERIFY_FIREBASE_PHONE" &&
     "requiresRegistration" in envelope.data &&
     envelope.data.requiresRegistration
   ) {

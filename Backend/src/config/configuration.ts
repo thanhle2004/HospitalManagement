@@ -54,6 +54,11 @@ export default () => {
       ),
       maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS || '5', 10),
     },
+    firebase: {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    },
     security: {
       authRateLimitEnabled: parseBoolean(
         process.env.AUTH_RATE_LIMIT_ENABLED,

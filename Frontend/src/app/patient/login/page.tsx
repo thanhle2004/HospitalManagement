@@ -7,6 +7,16 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { FirebaseError } from "firebase/app";
+import {
+  ConfirmationResult,
+  inMemoryPersistence,
+  RecaptchaVerifier,
+  setPersistence,
+  signInWithPhoneNumber,
+  signOut,
+  User,
+} from "firebase/auth";
 import { ArrowLeft, LockKeyhole, Phone, ShieldCheck, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,11 +25,11 @@ import { Select } from "@/components/ui/select";
 import { ApiError } from "@/lib/api-client";
 import {
   useCompletePatientRegistration,
-  useOtpChallenge,
   usePatientSessionBootstrap,
-  useVerifyPatientPhone,
+  useVerifyFirebasePhone,
 } from "@/features/patient-auth/hooks";
 import { usePatientAuthStore } from "@/features/patient-auth/store";
+import { getFirebasePhoneAuth } from "@/lib/firebase-client";
 
 const phoneRegex = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/;
 
@@ -44,7 +54,23 @@ type OtpValues = z.infer<typeof otpSchema>;
 type RegistrationValues = z.infer<typeof registrationSchema>;
 
 function errorText(error: unknown): string {
+  if (error instanceof FirebaseError) {
+    const messages: Record<string, string> = {
+      "auth/invalid-phone-number": "Số điện thoại không hợp lệ",
+      "auth/invalid-verification-code": "Mã OTP không đúng",
+      "auth/code-expired": "Mã OTP đã hết hạn — vui lòng gửi lại mã",
+      "auth/too-many-requests": "Đã gửi quá nhiều yêu cầu — vui lòng thử lại sau",
+      "auth/quota-exceeded": "Firebase đã hết hạn mức gửi SMS của dự án",
+      "auth/captcha-check-failed": "Không thể xác minh reCAPTCHA — vui lòng thử lại",
+    };
+    return messages[error.code] ?? "Firebase không thể xác thực số điện thoại";
+  }
   return error instanceof ApiError ? error.message : "Có lỗi xảy ra, vui lòng thử lại";
+}
+
+function toFirebasePhone(phone: string): string {
+  const trimmed = phone.trim();
+  return trimmed.startsWith("0") ? `+84${trimmed.slice(1)}` : trimmed;
 }
 
 export default function PatientLoginPage() {
@@ -55,8 +81,13 @@ export default function PatientLoginPage() {
   const [otpPhone, setOtpPhone] = useState<string | null>(null);
   const [registrationToken, setRegistrationToken] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
-  const requestOtp = useOtpChallenge();
-  const verifyPhone = useVerifyPatientPhone();
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isConfirmingOtp, setIsConfirmingOtp] = useState(false);
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
+  const verifyFirebasePhone = useVerifyFirebasePhone();
   const completeRegistration = useCompletePatientRegistration();
 
   const phoneForm = useForm<PhoneValues>({ resolver: zodResolver(phoneSchema) });
@@ -87,29 +118,67 @@ export default function PatientLoginPage() {
     return () => window.clearInterval(timer);
   }, [secondsLeft]);
 
-  const sendOtp = async ({ phone }: PhoneValues) => {
+  useEffect(() => {
+    return () => {
+      recaptchaVerifier?.clear();
+    };
+  }, [recaptchaVerifier]);
+
+  const sendFirebaseOtp = async (phone: string) => {
+    setFirebaseError(null);
+    setIsSendingOtp(true);
     try {
-      await requestOtp.mutateAsync({ phone });
+      const auth = getFirebasePhoneAuth();
+      await setPersistence(auth, inMemoryPersistence);
+      if (auth.currentUser) await signOut(auth);
+      recaptchaVerifier?.clear();
+      const verifier = new RecaptchaVerifier(
+        auth,
+        "firebase-recaptcha-container",
+        { size: "invisible" },
+      );
+      setRecaptchaVerifier(verifier);
+      const confirmation = await signInWithPhoneNumber(
+        auth,
+        toFirebasePhone(phone),
+        verifier,
+      );
+      setConfirmationResult(confirmation);
+      setFirebaseUser(null);
       setOtpPhone(phone);
       setSecondsLeft(60);
-    } catch {
-      // Mutation hiển thị lỗi ngay trong form.
+    } catch (error) {
+      recaptchaVerifier?.clear();
+      setRecaptchaVerifier(null);
+      setFirebaseError(errorText(error));
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
+  const sendOtp = ({ phone }: PhoneValues) => sendFirebaseOtp(phone);
+
   const verifyOtp = async ({ otp }: OtpValues) => {
-    if (!otpPhone) return;
+    if (!otpPhone || !confirmationResult) return;
+    setFirebaseError(null);
+    setIsConfirmingOtp(true);
     try {
-      const result = await verifyPhone.mutateAsync({
-        action: "VERIFY_PHONE",
-        phone: otpPhone,
-        otp,
+      const auth = getFirebasePhoneAuth();
+      const verifiedUser = firebaseUser ?? (await confirmationResult.confirm(otp)).user;
+      setFirebaseUser(verifiedUser);
+      const firebaseIdToken = await verifiedUser.getIdToken(true);
+      const result = await verifyFirebasePhone.mutateAsync({
+        action: "VERIFY_FIREBASE_PHONE",
+        firebaseIdToken,
       });
+      await signOut(auth);
       if ("requiresRegistration" in result) {
         setRegistrationToken(result.registrationToken);
       }
-    } catch {
-      // Mutation hiển thị lỗi ngay trong form.
+    } catch (error) {
+      setFirebaseError(errorText(error));
+    } finally {
+      setIsConfirmingOtp(false);
     }
   };
 
@@ -131,20 +200,25 @@ export default function PatientLoginPage() {
   const resetPhone = () => {
     setOtpPhone(null);
     setRegistrationToken(null);
+    setConfirmationResult(null);
+    setFirebaseUser(null);
+    setFirebaseError(null);
     setSecondsLeft(0);
-    requestOtp.reset();
-    verifyPhone.reset();
+    verifyFirebasePhone.reset();
     otpForm.reset();
+    recaptchaVerifier?.clear();
+    setRecaptchaVerifier(null);
+    try {
+      const auth = getFirebasePhoneAuth();
+      if (auth.currentUser) void signOut(auth);
+    } catch {
+      // Firebase chưa cấu hình thì không có phiên client cần xoá.
+    }
   };
 
   const resendOtp = async () => {
     if (!otpPhone || secondsLeft > 0) return;
-    try {
-      await requestOtp.mutateAsync({ phone: otpPhone });
-      setSecondsLeft(60);
-    } catch {
-      // Mutation hiển thị lỗi ngay trong form.
-    }
+    await sendFirebaseOtp(otpPhone);
   };
 
   const stage = registrationToken ? "REGISTER" : otpPhone ? "OTP" : "PHONE";
@@ -185,8 +259,9 @@ export default function PatientLoginPage() {
                   <Input id="patient-phone" inputMode="tel" autoComplete="tel" placeholder="0901 234 567" className="h-12 rounded-xl text-base focus-visible:ring-sky-500" {...phoneForm.register("phone")} />
                   {phoneForm.formState.errors.phone ? <p className="text-xs text-red-600">{phoneForm.formState.errors.phone.message}</p> : <p className="text-xs text-slate-500">Hệ thống sẽ tự nhận biết bạn đã có hồ sơ hay chưa.</p>}
                 </div>
-                {requestOtp.isError ? <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{errorText(requestOtp.error)}</p> : null}
-                <Button type="submit" size="lg" className="w-full rounded-xl bg-sky-700 hover:bg-sky-800" isLoading={requestOtp.isPending}>Tiếp tục</Button>
+                <p className="text-[11px] leading-5 text-slate-500">Firebase và Google có thể xử lý số điện thoại để gửi SMS và chống spam; cước SMS tiêu chuẩn có thể áp dụng.</p>
+                {firebaseError ? <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{firebaseError}</p> : null}
+                <Button id="firebase-phone-submit" type="submit" size="lg" className="w-full rounded-xl bg-sky-700 hover:bg-sky-800" isLoading={isSendingOtp}>Tiếp tục</Button>
               </form>
             ) : stage === "OTP" ? (
               <>
@@ -197,11 +272,11 @@ export default function PatientLoginPage() {
                     <Input id="patient-otp" inputMode="numeric" autoComplete="one-time-code" maxLength={8} placeholder="••••••" className="h-14 rounded-xl text-center text-xl font-bold tracking-[0.35em] focus-visible:ring-sky-500" {...otpForm.register("otp")} />
                     {otpForm.formState.errors.otp ? <p className="text-xs text-red-600">{otpForm.formState.errors.otp.message}</p> : null}
                   </div>
-                  {verifyPhone.isError ? <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{errorText(verifyPhone.error)}</p> : null}
-                  <Button type="submit" size="lg" className="w-full rounded-xl bg-sky-700 hover:bg-sky-800" isLoading={verifyPhone.isPending}>Xác nhận OTP</Button>
+                  {firebaseError ? <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{firebaseError}</p> : null}
+                  <Button type="submit" size="lg" className="w-full rounded-xl bg-sky-700 hover:bg-sky-800" isLoading={isConfirmingOtp || verifyFirebasePhone.isPending}>Xác nhận OTP</Button>
                 </form>
                 <div className="mt-5 text-center text-xs text-slate-500">
-                  {secondsLeft > 0 ? <span>Gửi lại mã sau {secondsLeft}s</span> : <button type="button" className="font-semibold text-sky-700" onClick={resendOtp} disabled={requestOtp.isPending}>Gửi lại mã OTP</button>}
+                  {secondsLeft > 0 ? <span>Gửi lại mã sau {secondsLeft}s</span> : <button type="button" className="font-semibold text-sky-700" onClick={resendOtp} disabled={isSendingOtp}>Gửi lại mã OTP</button>}
                 </div>
               </>
             ) : (
@@ -226,6 +301,8 @@ export default function PatientLoginPage() {
             )}
           </div>
         </section>
+
+        <div id="firebase-recaptcha-container" />
 
         <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-sky-100 bg-white p-3.5 text-xs leading-5 text-slate-600">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-sky-700" />

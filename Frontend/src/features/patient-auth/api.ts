@@ -1,11 +1,10 @@
 import { ApiError, envelopeFetch } from "@/lib/api-client";
 import { usePatientAuthStore } from "./store";
 import type {
-  OtpChallengeRequest,
   PatientProfile,
   CompleteRegistrationRequest,
-  VerifyPhoneRequest,
-  VerifyPhoneResult,
+  VerifyFirebasePhoneRequest,
+  VerifyFirebasePhoneResult,
 } from "./types";
 
 export async function patientRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
@@ -20,14 +19,8 @@ export async function patientRequest<T>(url: string, options: RequestInit = {}):
 }
 
 export const patientAuthApi = {
-  requestOtp: (payload: OtpChallengeRequest) =>
-    patientRequest<{ message: string }>(
-      "/api/patient/backend/patient-auth/phone/request-otp",
-      { method: "POST", body: JSON.stringify(payload) },
-    ),
-
-  verifyPhone: (payload: VerifyPhoneRequest) =>
-    patientRequest<VerifyPhoneResult>("/api/patient/session", {
+  verifyFirebasePhone: (payload: VerifyFirebasePhoneRequest) =>
+    patientRequest<VerifyFirebasePhoneResult>("/api/patient/session", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

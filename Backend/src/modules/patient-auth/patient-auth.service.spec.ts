@@ -26,6 +26,47 @@ function makeConfig(): ConfigService {
 }
 
 describe('PatientAuthService session safety', () => {
+  it('uses only the Firebase-verified phone and matches legacy +84 storage', async () => {
+    const patientsRepository = {
+      findByPhone: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'patient-firebase', tokenVersion: 0 }),
+    };
+    const sessionRepository = { create: jest.fn().mockResolvedValue(undefined) };
+    const jwtService = {
+      signAsync: jest
+        .fn()
+        .mockResolvedValueOnce('patient-access')
+        .mockResolvedValueOnce('patient-refresh'),
+    };
+    const service = new PatientAuthService(
+      patientsRepository as unknown as PatientsRepository,
+      {} as PatientOtpRepository,
+      sessionRepository as unknown as PatientSessionRepository,
+      {} as OtpSenderService,
+      jwtService as unknown as JwtService,
+      makeConfig(),
+      {} as PrismaService,
+    );
+
+    await expect(
+      service.authenticateVerifiedPhone('0900000001'),
+    ).resolves.toEqual({
+      requiresRegistration: false,
+      accessToken: 'patient-access',
+      refreshToken: 'patient-refresh',
+    });
+    expect(patientsRepository.findByPhone).toHaveBeenNthCalledWith(
+      1,
+      '0900000001',
+    );
+    expect(patientsRepository.findByPhone).toHaveBeenNthCalledWith(
+      2,
+      '+84900000001',
+    );
+  });
+
   it('automatically selects the OTP purpose without exposing whether the phone exists', async () => {
     const patientsRepository = {
       findByPhone: jest.fn().mockResolvedValue({ id: 'patient-1' }),

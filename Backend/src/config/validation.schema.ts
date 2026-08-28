@@ -79,13 +79,16 @@ export const validationSchema = Joi.object({
   }),
   JWT_DEVICE_ACCESS_EXPIRES_IN: Joi.string().default('12h'),
 
-  // Cấu hình OTP
+  // Cấu hình OTP legacy
   OTP_LENGTH: Joi.number().default(6),
   OTP_EXPIRES_IN_SECONDS: Joi.number().default(300), // 5 phút
   OTP_RESEND_COOLDOWN_SECONDS: Joi.number().default(60),
   OTP_MAX_ATTEMPTS: Joi.number().default(5),
+  FIREBASE_PROJECT_ID: Joi.string().optional(),
+  FIREBASE_CLIENT_EMAIL: Joi.string().email().optional(),
+  FIREBASE_PRIVATE_KEY: Joi.string().optional(),
   AUTH_RATE_LIMIT_ENABLED: Joi.boolean()
     .truthy('true')
     .falsy('false')
     .default(true),
-});
+}).and('FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY');

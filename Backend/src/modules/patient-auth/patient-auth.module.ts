@@ -9,6 +9,7 @@ import { PatientSessionRepository } from './repositories/patient-session.reposit
 import { OtpSenderService } from './otp-sender.service';
 import { PatientsModule } from '../patients/patients.module';
 import { PatientAuthChallengesController } from './patient-auth-challenges.controller';
+import { FirebasePhoneAuthService } from './firebase-phone-auth.service';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { PatientAuthChallengesController } from './patient-auth-challenges.contr
     PatientOtpRepository,
     PatientSessionRepository,
     OtpSenderService,
+    FirebasePhoneAuthService,
   ],
 })
 export class PatientAuthModule {}

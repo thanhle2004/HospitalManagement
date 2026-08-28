@@ -20,6 +20,7 @@ const BLOCKED_TOKEN_PATHS = new Set([
   "patient-auth/logout",
   "patient-auth/phone/verify",
   "patient-auth/phone/register",
+  "patient-auth/firebase/session",
 ]);
 
 async function handle(request: NextRequest, context: Context): Promise<Response> {

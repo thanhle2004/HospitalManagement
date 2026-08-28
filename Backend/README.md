@@ -35,15 +35,14 @@ src/
       users.controller.ts
     health/                         # health check qua @nestjs/terminus
       health.controller.ts          # GET /health/live và /health/ready (public)
-    patient-auth/                   # Phase 2 — JWT auth cho Patient (phone + OTP)
-      dto/                          # RequestOtpDto, VerifyRegisterDto, VerifyLoginDto...
+    patient-auth/                   # JWT Patient + xác minh Firebase Phone Authentication
+      dto/                          # Firebase ID token, hoàn tất hồ sơ, refresh...
       guards/patient-jwt-auth.guard.ts    # KHÔNG global — gắn thủ công @UseGuards()
       strategies/patient-jwt.strategy.ts  # strategy tên 'patient-jwt', secret RIÊNG với Staff
       decorators/current-patient.decorator.ts
-      repositories/                 # PatientOtpRepository, PatientSessionRepository
-      otp-sender.service.ts         # mock gửi SMS, không log OTP/phone — thay bằng gateway thật sau
-      utils/generate-otp.util.ts    # sinh OTP bằng crypto.randomInt (CSPRNG)
-      patient-auth.service.ts       # request-otp / verify (register+login) / refresh / logout
+      repositories/                 # PatientOtpRepository cũ + PatientSessionRepository
+      firebase-phone-auth.service.ts # xác minh Firebase ID token và phone_number
+      patient-auth.service.ts       # login/register ticket / refresh / logout
       patient-auth.controller.ts    # POST /patient-auth/...
     patients/                       # Phase 2 — hồ sơ Patient (Admin CRUD đầy đủ sẽ ở Phase 3)
       patients.repository.ts        # export dùng chung cho patient-auth + các phase sau (Visit...)
@@ -194,49 +193,25 @@ curl -X POST http://localhost:3000/users/me/change-password \
 - **Refresh token rotation**: mỗi lần gọi `/auth/refresh`, token cũ bị revoke ngay lập tức và token mới được cấp. Nếu 1 refresh token bị lộ và dùng lại sau khi đã rotate → request sẽ fail (đã bị revoke).
 - **Mật khẩu**: hash bằng `bcryptjs` (pure JS, không cần build native trên Windows), 10 salt rounds.
 
-## 7. Test nhanh API Patient Auth (Phase 2)
+## 7. Firebase Phone Authentication cho Patient
 
-Mock SMS hiện **không log OTP hoặc số điện thoại**. Để chạy manual E2E, cấu hình SMS sandbox hoặc inject test sender riêng; không khôi phục việc copy OTP từ log.
+1. Trong Firebase Console, bật provider **Authentication → Sign-in method → Phone** và thêm domain frontend vào **Authorized domains**.
+2. Điền cấu hình Web App `NEXT_PUBLIC_FIREBASE_*` ở frontend. Đây là cấu hình public dành cho trình duyệt, không phải service-account secret.
+3. Backend luôn cần `FIREBASE_PROJECT_ID`, sau đó dùng một trong hai cách cấp quyền:
+   - đặt `GOOGLE_APPLICATION_CREDENTIALS` trỏ tới service-account JSON ở môi trường chạy; hoặc
+   - điền thêm `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`.
+4. Không commit service-account JSON hoặc private key thật vào repository.
 
-```bash
-# 1. Đăng ký — bước 1: gửi OTP
-curl -X POST http://localhost:3000/patient-auth/register/request-otp \
-  -H "Content-Type: application/json" \
-  -d '{"phone":"0912345678"}'
-# → provider sandbox phải chuyển OTP; mock mặc định chỉ ghi nhận dispatch không chứa secret
+Trình duyệt dùng Firebase SDK và invisible reCAPTCHA để gửi SMS. Sau khi bệnh nhân nhập đúng OTP, frontend lấy Firebase ID token rồi gửi qua BFF tới `POST /patient-auth/firebase/session`. Backend xác minh chữ ký, thời hạn token, `sign_in_provider=phone` và lấy `phone_number` trực tiếp từ token; số điện thoại trong request của trình duyệt không được tin cậy.
 
-# 2. Đăng ký — bước 2: xác thực OTP + cung cấp hồ sơ cá nhân
-curl -X POST http://localhost:3000/patient-auth/register/verify \
-  -H "Content-Type: application/json" \
-  -d '{"phone":"0912345678","otp":"123456","fullName":"Nguyễn Văn A","address":"TP.HCM"}'
-# → { "data": { "accessToken": "...", "refreshToken": "..." } }
-# patientTypeId không truyền → tự gán PatientType mặc định "STANDARD" (đã seed)
+Nếu số điện thoại đã tồn tại, backend phát session Patient. Nếu chưa tồn tại, backend chỉ phát registration ticket ngắn hạn; bệnh nhân hoàn tất hồ sơ rồi mới được tạo tài khoản và session. Các endpoint OTP tự quản lý cũ vẫn được giữ tạm thời để tương thích, nhưng giao diện Patient không gọi chúng.
 
-# 3. Xem hồ sơ của chính mình
-curl http://localhost:3000/patients/me -H "Authorization: Bearer <PATIENT_ACCESS_TOKEN>"
-
-# 4. Đăng nhập lần sau — chỉ cần OTP, không cần lại thông tin cá nhân
-curl -X POST http://localhost:3000/patient-auth/login/request-otp \
-  -H "Content-Type: application/json" -d '{"phone":"0912345678"}'
-
-curl -X POST http://localhost:3000/patient-auth/login/verify \
-  -H "Content-Type: application/json" -d '{"phone":"0912345678","otp":"654321"}'
-
-# 5. Refresh / Logout tương tự Auth Staff
-curl -X POST http://localhost:3000/patient-auth/refresh \
-  -H "Content-Type: application/json" -d '{"refreshToken":"<PATIENT_REFRESH_TOKEN>"}'
-
-curl -X POST http://localhost:3000/patient-auth/logout \
-  -H "Authorization: Bearer <PATIENT_ACCESS_TOKEN>"
-```
-
-### Cơ chế Auth Patient (Phase 2)
+### Cơ chế Auth Patient
 - **Token hoàn toàn tách biệt Staff**: strategy Passport riêng tên `'patient-jwt'`, secret riêng (`JWT_PATIENT_ACCESS_SECRET`/`JWT_PATIENT_REFRESH_SECRET`) — token Staff không dùng được cho route Patient và ngược lại, kể cả khi cả hai đều là JWT hợp lệ.
-- **Không phải global guard**: `PatientJwtAuthGuard` chỉ gắn thủ công ở route cần (`/patients/me`, `/patient-auth/logout`) vì phần lớn route trong app là dành cho Staff. Toàn bộ `PatientAuthController`/`PatientsController` đều có `@Public()` ở mức class để "né" `JwtAuthGuard` (Staff, global) trước, rồi guard riêng của Patient mới xử lý tiếp.
-- **OTP**: sinh bằng `crypto.randomInt` (CSPRNG, không dùng `Math.random()`), hash bằng `bcryptjs` trước khi lưu DB (không lưu plaintext) — giống cách xử lý password.
-- **Chống spam**: cooldown 60s giữa 2 lần gửi OTP cùng số điện thoại (`OTP_RESEND_COOLDOWN_SECONDS`), giới hạn 5 lần thử sai (`OTP_MAX_ATTEMPTS`) trước khi phải xin mã mới.
-- **Unit of Work**: `verifyRegister()` tạo `Patient` + đánh dấu OTP đã dùng trong cùng transaction — nếu tạo Patient lỗi, OTP vẫn còn hiệu lực để thử lại thay vì bị "đốt" vô ích.
-- **Luồng đăng ký vs đăng nhập tách biệt** qua `OtpPurpose` (`REGISTER`/`LOGIN`) — 1 số điện thoại chưa có Patient sẽ bị chặn ở luồng login (gợi ý đăng ký), và ngược lại số đã có Patient bị chặn ở luồng register (gợi ý đăng nhập).
+- **Không phải global guard**: `PatientJwtAuthGuard` chỉ gắn thủ công ở route cần (`/patients/me`, `/patient-auth/logout`) vì phần lớn route trong app là dành cho Staff. Toàn bộ `PatientAuthController`/`PatientsController` đều có `@Public()` ở mức class để guard riêng của Patient xử lý.
+- **Xác minh số điện thoại**: Firebase gửi SMS và xác minh OTP; backend chỉ nhận Firebase ID token, kiểm tra token đã bị thu hồi và chỉ chấp nhận provider `phone` có claim `phone_number` hợp lệ.
+- **Chống lạm dụng**: Firebase reCAPTCHA bảo vệ bước gửi SMS; endpoint đổi Firebase token thành session còn được rate-limit theo IP và số điện thoại.
+- **Đăng ký an toàn**: registration ticket được ký bằng secret dẫn xuất riêng và không dùng được như Patient access token.
 
 ## Xem dữ liệu bằng Prisma Studio
 
@@ -304,16 +279,16 @@ Xem `Dockerfile` và service `migrate` trong `docker-compose.yml` để biết r
 ## Design pattern áp dụng
 - **Repository Pattern** — mọi câu gọi Prisma nằm trong `*.repository.ts`. Service không import `PrismaService.<model>` trực tiếp.
 - **Mapper Pattern** — `UsersMapper`/`PatientsMapper` loại bỏ field nhạy cảm (`passwordHash`) trước khi trả ra ngoài, dù entity Prisma có field này.
-- **Unit of Work** (`prisma.service.ts` → `transaction()`) — `POST /users/doctors` tạo `User`+`UserProfile`; `POST /patient-auth/register/verify` tạo `Patient` + đánh dấu OTP đã dùng; `VisitsService.create()` copy Flow→VisitStep; `DoctorService.completeExam()` — đều trong cùng 1 transaction.
+- **Unit of Work** (`prisma.service.ts` → `transaction()`) — `POST /users/doctors` tạo `User`+`UserProfile`; hoàn tất đăng ký Patient tạo hồ sơ + session; `VisitsService.create()` copy Flow→VisitStep; `DoctorService.completeExam()` — đều trong cùng 1 transaction.
 - **Guard-based RBAC** — `JwtAuthGuard`+`RolesGuard` (Staff) đăng ký global qua `APP_GUARD`, secure-by-default. `PatientJwtAuthGuard`/`DeviceJwtAuthGuard` KHÔNG global, gắn thủ công theo route — 3 hệ thống JWT hoàn toàn tách biệt, không dùng lẫn được.
-- **Strategy-ready** — `OtpSenderService` tách riêng thành 1 provider độc lập, chỉ cần thay nội dung 1 file khi tích hợp SMS gateway thật.
+- **Firebase Phone Authentication** — Firebase Web SDK gửi/xác minh OTP; Firebase Admin SDK xác minh ID token trước khi backend phát session nội bộ.
 - **Event-driven** (`@nestjs/event-emitter`) — `VisitsService`/`RoutingEngineService`/`CheckInService`/`DoctorService`/`AdminQueueService` không import lẫn nhau, chỉ emit event (`visit-step.ready`, `visit.updated`, `room-queue.updated`) — `RoutingEngineService` và `RealtimeGateway` lắng nghe, tránh circular dependency.
 - **Optimistic Locking** — `RoomRuntime.version`, dùng khi Doctor "start exam" (chống 2 request cùng claim 1 phòng).
 - **Fractional Ordering** — `RoomQueueEntry.position` kiểu `Float`, Admin chèn giữa hàng đợi bằng trung điểm 2 vị trí lân cận, không cần re-index toàn bộ.
 
 ## Roadmap các Phase
 1. ~~Auth Staff (Admin/Doctor) + JWT Guard~~ ✅
-2. ~~Auth Patient (phone + OTP)~~ ✅
+2. ~~Auth Patient (Firebase Phone Authentication)~~ ✅
 3. ~~Dữ liệu nền: RoomType, Room, PatientType, Device, DoctorAssignment~~ ✅
 4. ~~Workflow Builder (Flow/FlowStep/FlowDependency) + thuật toán kiểm tra DAG~~ ✅
 5. ~~Visit creation (copy Flow → VisitStep runtime) + Kahn's algorithm xác định bước READY~~ ✅
@@ -327,5 +302,5 @@ Xem `Dockerfile` và service `migrate` trong `docker-compose.yml` để biết r
 ### Gợi ý cho bước tiếp theo (ngoài roadmap gốc)
 - Cấp production schema-only dump/anonymized clone để lặp lại inventory, reconciliation và restore rehearsal.
 - Hoàn tất authorization/E2E/concurrency test còn thiếu.
-- SMS gateway sandbox/thật thay `OtpSenderService` mock mà không log secret.
+- Bổ sung Firebase App Check và shared rate-limit store trước khi scale nhiều backend replica.
 - Xử lý dependency advisory qua kế hoạch upgrade riêng có regression test.

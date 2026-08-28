@@ -147,6 +147,23 @@ export class PatientAuthService {
     });
   }
 
+  /**
+   * Firebase Admin đã xác minh quyền sở hữu số điện thoại trước khi gọi hàm
+   * này. Backend chỉ dùng số lấy từ ID token, không nhận phone do client khai.
+   */
+  async authenticateVerifiedPhone(
+    phone: string,
+  ): Promise<PatientPhoneVerificationResponse> {
+    const patient = await this.findPatientByPhoneVariants(phone);
+    if (!patient) {
+      const registrationToken = await this.issueRegistrationToken(phone);
+      return { requiresRegistration: true, registrationToken };
+    }
+
+    const tokens = await this.issueTokens(patient.id, patient.tokenVersion);
+    return { requiresRegistration: false, ...tokens };
+  }
+
   async completePhoneRegistration(
     dto: CompletePatientRegistrationDto,
   ): Promise<PatientTokenResponseDto> {
@@ -166,7 +183,7 @@ export class PatientAuthService {
       throw new UnauthorizedException('Mã xác nhận đăng ký không hợp lệ');
     }
 
-    const existing = await this.patientsRepository.findByPhone(payload.phone);
+    const existing = await this.findPatientByPhoneVariants(payload.phone);
     if (existing) {
       throw new ConflictException(
         'Số điện thoại đã có hồ sơ — vui lòng xác thực lại để đăng nhập',
@@ -505,5 +522,30 @@ export class PatientAuthService {
 
   private registrationTokenSecret(): string {
     return `${this.configService.get<string>('jwt.patientAccessSecret')}:registration`;
+  }
+
+  private issueRegistrationToken(phone: string): Promise<string> {
+    return this.jwtService.signAsync(
+      { phone, purpose: REGISTRATION_TOKEN_PURPOSE },
+      {
+        secret: this.registrationTokenSecret(),
+        expiresIn: '15m',
+        jwtid: randomUUID(),
+      },
+    );
+  }
+
+  private async findPatientByPhoneVariants(phone: string) {
+    const direct = await this.patientsRepository.findByPhone(phone);
+    if (direct) return direct;
+
+    const alternative = phone.startsWith('0')
+      ? `+84${phone.slice(1)}`
+      : phone.startsWith('+84')
+        ? `0${phone.slice(3)}`
+        : null;
+    return alternative
+      ? this.patientsRepository.findByPhone(alternative)
+      : null;
   }
 }

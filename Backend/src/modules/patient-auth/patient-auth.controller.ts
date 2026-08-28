@@ -23,6 +23,8 @@ import { AuthRateLimitService } from '../../common/security/auth-rate-limit.serv
 import { getClientAddress } from '../../common/http/client-address.util';
 import { PatientPhoneVerificationResponseDto } from './dto/patient-phone-verification-response.dto';
 import { CompletePatientRegistrationDto } from './dto/complete-patient-registration.dto';
+import { VerifyFirebasePhoneDto } from './dto/verify-firebase-phone.dto';
+import { FirebasePhoneAuthService } from './firebase-phone-auth.service';
 
 @ApiTags('Patient Auth')
 @Public() // Toàn bộ controller này bỏ qua JwtAuthGuard (Staff, global) — patient dùng token khác hẳn
@@ -31,7 +33,37 @@ export class PatientAuthController {
   constructor(
     private readonly patientAuthService: PatientAuthService,
     private readonly rateLimit: AuthRateLimitService,
+    private readonly firebasePhoneAuth: FirebasePhoneAuthService,
   ) {}
+
+  @Post('firebase/session')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Xác minh Firebase Phone ID token rồi đăng nhập hoặc mở đăng ký',
+  })
+  @ApiOkResponse({ type: PatientPhoneVerificationResponseDto })
+  async createFirebaseSession(
+    @Req() request: Request,
+    @Body() dto: VerifyFirebasePhoneDto,
+  ) {
+    const address = getClientAddress(request);
+    this.rateLimit.assertAllowed(
+      'patient-firebase-session-ip',
+      [address],
+      30,
+      600_000,
+    );
+    const phone = await this.firebasePhoneAuth.verifyPhoneNumber(
+      dto.firebaseIdToken,
+    );
+    this.rateLimit.assertAllowed(
+      'patient-firebase-session-phone',
+      [phone],
+      10,
+      600_000,
+    );
+    return this.patientAuthService.authenticateVerifiedPhone(phone);
+  }
 
   @Post('phone/request-otp')
   @HttpCode(HttpStatus.OK)

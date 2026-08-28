@@ -18,14 +18,9 @@ export interface PatientProfile {
   createdAt: string;
 }
 
-export interface OtpChallengeRequest {
-  phone: string;
-}
-
-export interface VerifyPhoneRequest {
-  action: "VERIFY_PHONE";
-  phone: string;
-  otp: string;
+export interface VerifyFirebasePhoneRequest {
+  action: "VERIFY_FIREBASE_PHONE";
+  firebaseIdToken: string;
 }
 
 export interface CompleteRegistrationRequest {
@@ -40,6 +35,6 @@ export interface CompleteRegistrationRequest {
   emergencyContact?: string;
 }
 
-export type VerifyPhoneResult =
+export type VerifyFirebasePhoneResult =
   | PatientProfile
   | { requiresRegistration: true; registrationToken: string };
