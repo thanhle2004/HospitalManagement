@@ -55,7 +55,12 @@ export async function envelopeFetch<T>(
   }
 
   if (!response.ok || !body.success) {
-    if (response.status === 401) useAuthStore.getState().clearAuth();
+    if (
+      response.status === 401 &&
+      (url === "/api/session" || url.startsWith("/api/backend/"))
+    ) {
+      useAuthStore.getState().clearAuth();
+    }
     throw new ApiError(body.statusCode ?? response.status, toMessage(body.message, "Có lỗi xảy ra"));
   }
 

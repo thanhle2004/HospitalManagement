@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/layout/toaster";
 import "./globals.css";
@@ -10,6 +10,13 @@ const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 export const metadata: Metadata = {
   title: "HospitalManagement",
   description: "Hệ thống tối ưu luồng khám chữa bệnh",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0d9488",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

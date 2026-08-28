@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { HeartPulse } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().min(1, "Vui lòng nhập email").email("Email không hợp lệ"),
@@ -89,6 +91,16 @@ export default function LoginPage() {
               Đăng nhập
             </Button>
           </form>
+
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <Link
+              href="/patient/login"
+              className="flex items-center justify-center gap-2 rounded-lg bg-teal-50 px-3 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100"
+            >
+              <HeartPulse className="h-4 w-4" />
+              Đăng nhập dành cho bệnh nhân
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

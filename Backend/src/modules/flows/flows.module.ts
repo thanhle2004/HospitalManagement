@@ -7,10 +7,11 @@ import { FlowsRepository } from './repositories/flows.repository';
 import { FlowStepsRepository } from './repositories/flow-steps.repository';
 import { FlowDependenciesRepository } from './repositories/flow-dependencies.repository';
 import { RoomTypesModule } from '../room-types/room-types.module';
+import { PatientFlowsController } from './patient-flows.controller';
 
 @Module({
   imports: [RoomTypesModule], // validate roomTypeId tồn tại khi tạo FlowStep
-  controllers: [FlowsController],
+  controllers: [FlowsController, PatientFlowsController],
   providers: [
     FlowsService,
     FlowStepsService,
