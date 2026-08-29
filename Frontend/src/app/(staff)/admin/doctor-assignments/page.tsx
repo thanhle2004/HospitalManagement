@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Square, Trash2 } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Plus, Square, Trash2, UsersRound } from "lucide-react";
 import {
   useDoctorAssignments,
   useEndDoctorShift,
@@ -32,9 +32,12 @@ function formatDateTime(iso: string) {
   });
 }
 
-function isOngoing(assignment: DoctorAssignment) {
-  if (!assignment.endTime) return true;
-  return new Date(assignment.endTime).getTime() > Date.now();
+function assignmentState(assignment: DoctorAssignment, now: number) {
+  if (new Date(assignment.startTime).getTime() > now) return "upcoming" as const;
+  if (!assignment.endTime || new Date(assignment.endTime).getTime() > now) {
+    return "active" as const;
+  }
+  return "completed" as const;
 }
 
 export default function DoctorAssignmentsPage() {
@@ -44,22 +47,69 @@ export default function DoctorAssignmentsPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DoctorAssignment | null>(null);
+  const now = assignments.dataUpdatedAt;
+  const activeAssignments =
+    assignments.data?.filter((item) => assignmentState(item, now) === "active") ?? [];
+  const upcomingCount =
+    assignments.data?.filter((item) => assignmentState(item, now) === "upcoming").length ?? 0;
+  const confirmedCount = activeAssignments.filter((item) => item.roomConfirmedAt).length;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Ca trực</h1>
-          <p className="text-sm text-slate-500">Phân công bác sĩ vào phòng khám theo khung giờ</p>
+          <h1 className="text-xl font-semibold text-slate-900">Phân phòng trực</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Admin xếp phòng trước; bác sĩ xác nhận đúng phòng khi bắt đầu ca.
+          </p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
+        <Button
+          className="bg-sky-700 hover:bg-sky-800 focus-visible:ring-sky-700"
+          onClick={() => setFormOpen(true)}
+        >
           <Plus className="h-4 w-4" />
-          Phân công
+          Phân phòng cho bác sĩ
         </Button>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card>
+          <div className="flex items-center gap-3 p-4">
+            <div className="rounded-xl bg-sky-100 p-2.5">
+              <UsersRound className="h-5 w-5 text-sky-700" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Đang trong ca</p>
+              <p className="text-xl font-semibold text-slate-900">{activeAssignments.length}</p>
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <div className="flex items-center gap-3 p-4">
+            <div className="rounded-xl bg-green-100 p-2.5">
+              <CheckCircle2 className="h-5 w-5 text-green-700" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Đã xác nhận phòng</p>
+              <p className="text-xl font-semibold text-slate-900">{confirmedCount}</p>
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <div className="flex items-center gap-3 p-4">
+            <div className="rounded-xl bg-amber-100 p-2.5">
+              <CalendarDays className="h-5 w-5 text-amber-700" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Ca sắp tới</p>
+              <p className="text-xl font-semibold text-slate-900">{upcomingCount}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
       <Card className="overflow-hidden">
-        <Table>
+        <Table className="min-w-[940px]">
           <TableHeader>
             <TableRow>
               <TableHead>Bác sĩ</TableHead>
@@ -67,26 +117,27 @@ export default function DoctorAssignmentsPage() {
               <TableHead>Bắt đầu</TableHead>
               <TableHead>Kết thúc</TableHead>
               <TableHead>Trạng thái</TableHead>
+              <TableHead>Xác nhận phòng</TableHead>
               <TableHead className="w-24 text-right">Hành động</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {assignments.isLoading && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-slate-500">
+                <TableCell colSpan={7} className="text-center text-slate-500">
                   Đang tải...
                 </TableCell>
               </TableRow>
             )}
             {assignments.data?.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-slate-500">
+                <TableCell colSpan={7} className="text-center text-slate-500">
                   Chưa có ca trực nào
                 </TableCell>
               </TableRow>
             )}
             {assignments.data?.map((a) => {
-              const ongoing = isOngoing(a);
+              const state = assignmentState(a, now);
               return (
                 <TableRow key={a.id}>
                   <TableCell className="font-medium text-slate-900">
@@ -100,24 +151,51 @@ export default function DoctorAssignmentsPage() {
                     {a.endTime ? formatDateTime(a.endTime) : "Chưa xác định"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={ongoing ? "success" : "default"}>
-                      {ongoing ? "Đang/sẽ trực" : "Đã kết thúc"}
+                    <Badge
+                      variant={state === "active" ? "success" : state === "upcoming" ? "info" : "default"}
+                    >
+                      {state === "active"
+                        ? "Đang trực"
+                        : state === "upcoming"
+                          ? "Sắp tới"
+                          : "Đã kết thúc"}
                     </Badge>
                   </TableCell>
                   <TableCell>
+                    {a.roomConfirmedAt ? (
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-green-700">
+                        <CheckCircle2 className="h-4 w-4" />
+                        {formatDateTime(a.roomConfirmedAt)}
+                      </div>
+                    ) : state === "active" ? (
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700">
+                        <Clock3 className="h-4 w-4" />
+                        Chờ bác sĩ xác nhận
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">Chưa xác nhận</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <div className="flex justify-end gap-1">
-                      {ongoing && (
+                      {state !== "completed" && (
                         <Button
                           variant="ghost"
                           size="sm"
                           title="Kết thúc ca sớm"
+                          aria-label={`Kết thúc ca của ${a.doctor.fullName ?? a.doctor.email}`}
                           onClick={() => endShift.mutate(a.id)}
                           disabled={endShift.isPending}
                         >
                           <Square className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(a)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Xoá ca của ${a.doctor.fullName ?? a.doctor.email}`}
+                        onClick={() => setDeleteTarget(a)}
+                      >
                         <Trash2 className="h-4 w-4 text-red-600" />
                       </Button>
                     </div>

@@ -31,6 +31,11 @@ interface DoctorAssignmentFormDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function toLocalDateTimeInput(date: Date) {
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
 export function DoctorAssignmentFormDialog({ open, onOpenChange }: DoctorAssignmentFormDialogProps) {
   const doctors = useDoctors();
   const rooms = useRooms();
@@ -44,7 +49,17 @@ export function DoctorAssignmentFormDialog({ open, onOpenChange }: DoctorAssignm
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   useEffect(() => {
-    if (open) reset({ doctorId: "", roomId: undefined, startTime: "", endTime: "" });
+    if (open) {
+      const start = new Date();
+      start.setSeconds(0, 0);
+      const end = new Date(start.getTime() + 8 * 60 * 60 * 1_000);
+      reset({
+        doctorId: "",
+        roomId: undefined,
+        startTime: toLocalDateTimeInput(start),
+        endTime: toLocalDateTimeInput(end),
+      });
+    }
   }, [open, reset]);
 
   const onSubmit = (values: FormValues) => {
@@ -62,8 +77,8 @@ export function DoctorAssignmentFormDialog({ open, onOpenChange }: DoctorAssignm
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        title="Phân công ca trực"
-        description="Không được trùng khung giờ với ca trực khác của cùng bác sĩ."
+        title="Phân phòng trực cho bác sĩ"
+        description="Một bác sĩ và một phòng khám không thể có hai ca trùng giờ."
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <div className="space-y-1.5">
@@ -83,7 +98,7 @@ export function DoctorAssignmentFormDialog({ open, onOpenChange }: DoctorAssignm
             <Label htmlFor="roomId">Phòng khám</Label>
             <Select id="roomId" {...register("roomId")} disabled={rooms.isLoading}>
               <option value="">— Chọn phòng —</option>
-              {rooms.data?.map((r) => (
+              {rooms.data?.filter((r) => r.status === "ACTIVE").map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.roomNumber} — {r.name}
                 </option>
@@ -111,8 +126,12 @@ export function DoctorAssignmentFormDialog({ open, onOpenChange }: DoctorAssignm
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Huỷ
             </Button>
-            <Button type="submit" isLoading={createMutation.isPending}>
-              Phân công
+            <Button
+              type="submit"
+              className="bg-sky-700 hover:bg-sky-800 focus-visible:ring-sky-700"
+              isLoading={createMutation.isPending}
+            >
+              Xác nhận phân phòng
             </Button>
           </div>
         </form>

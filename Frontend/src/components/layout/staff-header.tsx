@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-export function StaffHeader() {
+export function StaffHeader({ showSearch = true }: { showSearch?: boolean }) {
   const user = useAuthStore((s) => s.user);
   const logout = useLogout();
 
@@ -26,7 +26,7 @@ export function StaffHeader() {
     "U";
 
   return (
-    <header className="flex h-20 items-center justify-between border-b border-slate-200 bg-white px-6">
+    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-3 sm:h-20 sm:px-6">
       {/* 1. Góc trái: Logo và Tên */}
       <div className="flex items-center gap-3">
         <Image
@@ -34,16 +34,16 @@ export function StaffHeader() {
           alt="Chilling Hospital Logo"
           width={40}
           height={40}
-          className="h-10 w-10"
+          className="h-9 w-9 sm:h-10 sm:w-10"
         />
         <div className="flex flex-col">
-          <span className="text-xl font-bold text-sky-900">Chilling Hospital</span>
-          <span className="text-xs text-sky-600">Smart Care, Chill Life</span>
+          <span className="text-base font-bold text-sky-900 sm:text-xl">Chilling Hospital</span>
+          <span className="hidden text-xs text-sky-600 sm:block">Smart Care, Chill Life</span>
         </div>
       </div>
 
       {/* 2. Giữa: Thanh tìm kiếm */}
-      <div className="flex-1 px-12">
+      <div className={showSearch ? "hidden flex-1 px-8 lg:block xl:px-12" : "hidden"}>
         <div className="relative w-full max-w-xl">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
           <Input
@@ -55,7 +55,7 @@ export function StaffHeader() {
       </div>
 
       {/* 3. Góc phải: Thông báo và User Menu */}
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-2 sm:gap-5">
         {/* Icon Thông báo */}
         <div className="relative">
           <Button variant="ghost" size="icon" className="rounded-full text-slate-500 hover:text-sky-600">

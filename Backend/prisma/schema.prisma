@@ -387,10 +387,12 @@ model DoctorAssignment {
   id Int @id @default(autoincrement())
 
   doctorId String @map("doctor_id") @db.Char(36)
-  roomId   Int @map("room_id")
+  roomId   Int    @map("room_id")
 
-  startTime DateTime  @map("start_time")
-  endTime   DateTime? @map("end_time")
+  startTime       DateTime  @map("start_time")
+  endTime         DateTime? @map("end_time")
+  // Bác sĩ chỉ xác nhận sau khi đã có mặt tại đúng phòng được Admin phân công.
+  roomConfirmedAt DateTime? @map("room_confirmed_at")
   // Đang trực khi endTime == null. Bỏ isActive để tránh 2 nguồn sự thật.
 
   doctor User @relation(fields: [doctorId], references: [id], onDelete: Cascade)

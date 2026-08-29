@@ -42,7 +42,7 @@ export class DoctorAssignmentsController {
     return this.doctorAssignmentsService.create(dto);
   }
 
-  // Không @Roles() => Doctor cũng xem được lịch trực (của chính mình hoặc toàn viện)
+  @Roles(UserRole.ADMIN)
   @Get()
   @ApiOperation({
     summary: 'Danh sách ca trực (lọc theo doctorId/roomId/activeOnly)',
@@ -52,6 +52,7 @@ export class DoctorAssignmentsController {
     return this.doctorAssignmentsService.findAll(query);
   }
 
+  @Roles(UserRole.ADMIN)
   @Get(':id')
   @ApiOperation({ summary: 'Chi tiết 1 ca trực' })
   @ApiOkResponse({ type: DoctorAssignmentResponseDto })

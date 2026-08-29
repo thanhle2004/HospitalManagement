@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { RoomStatus, UserRole } from '@prisma/client';
 import { DoctorAssignmentsRepository } from './repositories/doctor-assignments.repository';
 import { DoctorAssignmentsMapper } from './doctor-assignments.mapper';
 import { UsersRepository } from '../users/users.repository';
@@ -31,9 +31,13 @@ export class DoctorAssignmentsService {
     if (!room) {
       throw new NotFoundException(`Room #${dto.roomId} không tồn tại`);
     }
+    if (room.status !== RoomStatus.ACTIVE) {
+      throw new ConflictException('Chỉ có thể phân ca vào phòng đang hoạt động');
+    }
 
     await this.assertNoOverlap(
       dto.doctorId,
+      dto.roomId,
       dto.startTime,
       dto.endTime ?? null,
     );
@@ -92,6 +96,7 @@ export class DoctorAssignmentsService {
    */
   private async assertNoOverlap(
     doctorId: string,
+    roomId: number,
     startTime: Date,
     endTime: Date | null,
     excludeId?: number,
@@ -106,6 +111,19 @@ export class DoctorAssignmentsService {
     if (overlapping.length > 0) {
       throw new ConflictException(
         'Doctor đã có ca trực khác trong khoảng thời gian này',
+      );
+    }
+
+    const roomOverlapping =
+      await this.doctorAssignmentsRepository.findRoomOverlapping(
+        roomId,
+        startTime,
+        endTime,
+        excludeId,
+      );
+    if (roomOverlapping.length > 0) {
+      throw new ConflictException(
+        'Phòng khám đã có bác sĩ trực trong khoảng thời gian này',
       );
     }
   }

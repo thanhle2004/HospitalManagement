@@ -15,6 +15,8 @@ import { VisitStepsRepository } from '../visits/repositories/visit-steps.reposit
 import { VisitsService } from '../visits/visits.service';
 import { DoctorQueueEntryDto } from './dto/doctor-queue-entry.dto';
 import { ExamActionResponseDto } from './dto/exam-action-response.dto';
+import { DoctorAssignmentResponseDto } from '../doctor-assignments/dto/doctor-assignment-response.dto';
+import { DoctorAssignmentsMapper } from '../doctor-assignments/doctor-assignments.mapper';
 import {
   VISIT_STEP_READY_EVENT,
   VisitStepReadyEvent,
@@ -43,6 +45,41 @@ export class DoctorService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
+  async getMyDutyAssignments(
+    doctorId: string,
+  ): Promise<DoctorAssignmentResponseDto[]> {
+    const assignments =
+      await this.doctorAssignmentsRepository.findCurrentAndUpcomingForDoctor(
+        doctorId,
+      );
+    return DoctorAssignmentsMapper.toResponseDtoList(assignments);
+  }
+
+  async confirmDutyRoom(
+    doctorId: string,
+    assignmentId: number,
+  ): Promise<DoctorAssignmentResponseDto> {
+    const assignment = await this.doctorAssignmentsRepository.findById(assignmentId);
+    if (!assignment || assignment.doctorId !== doctorId) {
+      throw new NotFoundException(`Ca trực #${assignmentId} không tồn tại`);
+    }
+
+    const now = new Date();
+    if (assignment.startTime > now) {
+      throw new ConflictException('Ca trực chưa bắt đầu');
+    }
+    if (assignment.endTime && assignment.endTime <= now) {
+      throw new ConflictException('Ca trực đã kết thúc');
+    }
+
+    if (!assignment.roomConfirmedAt) {
+      await this.doctorAssignmentsRepository.confirmRoom(assignmentId, now);
+    }
+
+    const confirmed = await this.doctorAssignmentsRepository.findById(assignmentId);
+    return DoctorAssignmentsMapper.toResponseDto(confirmed!);
+  }
+
   /** §4 "Xem danh sách bệnh nhân đang chờ tại phòng khám được phân công" */
   async getMyQueue(doctorId: string): Promise<DoctorQueueEntryDto[]> {
     const roomIds = await this.doctorAssignmentsRepository.findActiveRoomIdsForDoctor(
@@ -57,6 +94,7 @@ export class DoctorService {
       position: entry.position,
       visitAssignmentId: entry.visitAssignmentId,
       visitStepId: entry.visitAssignment.visitStep.id,
+      status: entry.visitAssignment.status,
       room: {
         id: entry.room.id,
         roomNumber: entry.room.roomNumber,
@@ -231,7 +269,9 @@ export class DoctorService {
       doctorId,
     );
     if (!activeRoomIds.includes(roomId)) {
-      throw new ForbiddenException('Bạn không đang trực tại phòng khám này');
+      throw new ForbiddenException(
+        'Bạn chưa xác nhận có mặt tại phòng trực được phân công',
+      );
     }
   }
 }

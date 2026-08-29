@@ -17,6 +17,7 @@ export function useDoctorAssignments(params?: ListDoctorAssignmentsParams) {
   return useQuery({
     queryKey: [...BASE_QUERY_KEY, params ?? {}],
     queryFn: () => doctorAssignmentsApi.list(params),
+    refetchInterval: 15_000,
   });
 }
 

@@ -4,6 +4,7 @@ import { UserRole } from '@prisma/client';
 import { DoctorService } from './doctor.service';
 import { DoctorQueueEntryDto } from './dto/doctor-queue-entry.dto';
 import { ExamActionResponseDto } from './dto/exam-action-response.dto';
+import { DoctorAssignmentResponseDto } from '../doctor-assignments/dto/doctor-assignment-response.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
@@ -14,6 +15,23 @@ import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 @Controller('doctor')
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
+
+  @Get('duty-assignments')
+  @ApiOperation({ summary: 'Ca trực hiện tại và sắp tới của bác sĩ đăng nhập' })
+  @ApiOkResponse({ type: DoctorAssignmentResponseDto, isArray: true })
+  getMyDutyAssignments(@CurrentUser() user: JwtPayload) {
+    return this.doctorService.getMyDutyAssignments(user.sub);
+  }
+
+  @Post('duty-assignments/:id/confirm-room')
+  @ApiOperation({ summary: 'Xác nhận đã có mặt tại đúng phòng trực được phân công' })
+  @ApiOkResponse({ type: DoctorAssignmentResponseDto })
+  confirmDutyRoom(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.doctorService.confirmDutyRoom(user.sub, id);
+  }
 
   @Get('queue')
   @ApiOperation({

@@ -9,6 +9,7 @@ export class DoctorAssignmentsMapper {
       id: assignment.id,
       startTime: assignment.startTime,
       endTime: assignment.endTime,
+      roomConfirmedAt: assignment.roomConfirmedAt,
       doctor: {
         id: assignment.doctor.id,
         email: assignment.doctor.email,

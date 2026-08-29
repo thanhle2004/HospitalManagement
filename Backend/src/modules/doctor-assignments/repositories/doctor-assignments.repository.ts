@@ -52,6 +52,22 @@ export class DoctorAssignmentsRepository {
     });
   }
 
+  /** Ca đang diễn ra hoặc sắp tới của riêng bác sĩ, dùng cho màn hình Doctor. */
+  findCurrentAndUpcomingForDoctor(
+    doctorId: string,
+    db: Db = this.prisma,
+  ): Promise<DoctorAssignmentWithRelations[]> {
+    const now = new Date();
+    return db.doctorAssignment.findMany({
+      where: {
+        doctorId,
+        OR: [{ endTime: null }, { endTime: { gt: now } }],
+      },
+      include: { doctor: { include: { profile: true } }, room: true },
+      orderBy: { startTime: 'asc' },
+    });
+  }
+
   /**
    * Tìm các ca trực HIỆN CÓ của 1 doctor giao nhau với khoảng [startTime, endTime).
    * endTime = null nghĩa là ca trực mở (tới vô hạn). Công thức giao nhau chuẩn:
@@ -75,6 +91,23 @@ export class DoctorAssignmentsRepository {
     });
   }
 
+  findRoomOverlapping(
+    roomId: number,
+    startTime: Date,
+    endTime: Date | null,
+    excludeId?: number,
+    db: Db = this.prisma,
+  ): Promise<DoctorAssignment[]> {
+    return db.doctorAssignment.findMany({
+      where: {
+        roomId,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+        ...(endTime ? { startTime: { lt: endTime } } : {}),
+        OR: [{ endTime: null }, { endTime: { gt: startTime } }],
+      },
+    });
+  }
+
   endShift(
     id: number,
     endTime: Date,
@@ -83,20 +116,36 @@ export class DoctorAssignmentsRepository {
     return db.doctorAssignment.update({ where: { id }, data: { endTime } });
   }
 
+  confirmRoom(
+    id: number,
+    roomConfirmedAt: Date,
+    db: Db = this.prisma,
+  ): Promise<DoctorAssignment> {
+    return db.doctorAssignment.update({
+      where: { id },
+      data: { roomConfirmedAt },
+    });
+  }
+
   delete(id: number, db: Db = this.prisma): Promise<DoctorAssignment> {
     return db.doctorAssignment.delete({ where: { id } });
   }
 
-  /** Danh sách roomId mà doctor đang trực NGAY LÚC NÀY — dùng ở Phase 8 để xác định hàng đợi + quyền start/complete exam */
+  /**
+   * Danh sách phòng bác sĩ đang trực VÀ đã xác nhận có mặt. Đây là nguồn
+   * quyền duy nhất để mở hàng đợi và thực hiện khám.
+   */
   async findActiveRoomIdsForDoctor(
     doctorId: string,
     db: Db = this.prisma,
   ): Promise<number[]> {
+    const now = new Date();
     const rows = await db.doctorAssignment.findMany({
       where: {
         doctorId,
-        startTime: { lte: new Date() },
-        OR: [{ endTime: null }, { endTime: { gt: new Date() } }],
+        startTime: { lte: now },
+        roomConfirmedAt: { not: null },
+        OR: [{ endTime: null }, { endTime: { gt: now } }],
       },
       select: { roomId: true },
     });

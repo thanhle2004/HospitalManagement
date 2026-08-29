@@ -10,6 +10,89 @@ import { VisitsService } from '../visits/visits.service';
 import { DoctorService } from './doctor.service';
 
 describe('DoctorService characterization', () => {
+  it('records confirmation only for the doctor active on that duty assignment', async () => {
+    const confirmedAt = new Date('2026-08-29T03:00:00.000Z');
+    const baseAssignment = {
+      id: 5,
+      doctorId: 'doctor-1',
+      startTime: new Date('2020-01-01T00:00:00.000Z'),
+      endTime: null,
+      roomConfirmedAt: null,
+      doctor: {
+        id: 'doctor-1',
+        email: 'doctor@hospital.test',
+        profile: { fullName: 'Bác sĩ An' },
+      },
+      room: { id: 4, roomNumber: 'P.204', name: 'Nội tổng quát' },
+    };
+    const doctorAssignmentsRepository = {
+      findById: jest
+        .fn()
+        .mockResolvedValueOnce(baseAssignment)
+        .mockResolvedValueOnce({
+          ...baseAssignment,
+          roomConfirmedAt: confirmedAt,
+        }),
+      confirmRoom: jest.fn().mockResolvedValue(undefined),
+    };
+    const service = new DoctorService(
+      doctorAssignmentsRepository as unknown as DoctorAssignmentsRepository,
+      {} as VisitAssignmentsRepository,
+      {} as RoomQueueEntriesRepository,
+      {} as RoomRuntimeRepository,
+      {} as VisitStepsRepository,
+      {} as VisitsService,
+      {} as PrismaService,
+      {} as EventEmitter2,
+    );
+
+    const result = await service.confirmDutyRoom('doctor-1', 5);
+
+    expect(doctorAssignmentsRepository.confirmRoom).toHaveBeenCalledWith(
+      5,
+      expect.any(Date),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 5,
+        roomConfirmedAt: confirmedAt,
+        room: expect.objectContaining({ roomNumber: 'P.204' }),
+      }),
+    );
+  });
+
+  it('keeps the queue locked until the doctor confirms the assigned room', async () => {
+    const doctorAssignmentsRepository = {
+      findActiveRoomIdsForDoctor: jest.fn().mockResolvedValue([]),
+    };
+    const visitAssignmentsRepository = {
+      findByIdWithStep: jest.fn().mockResolvedValue({
+        id: 9,
+        roomId: 4,
+        status: AssignmentStatus.CHECKED_IN,
+        visitStep: { id: 12, visitId: 'visit-1' },
+      }),
+    };
+    const roomRuntimeRepository = {
+      ensureExists: jest.fn(),
+    };
+    const service = new DoctorService(
+      doctorAssignmentsRepository as unknown as DoctorAssignmentsRepository,
+      visitAssignmentsRepository as unknown as VisitAssignmentsRepository,
+      {} as RoomQueueEntriesRepository,
+      roomRuntimeRepository as unknown as RoomRuntimeRepository,
+      {} as VisitStepsRepository,
+      {} as VisitsService,
+      {} as PrismaService,
+      {} as EventEmitter2,
+    );
+
+    await expect(service.startExam('doctor-1', 9)).rejects.toThrow(
+      'Bạn chưa xác nhận có mặt tại phòng trực được phân công',
+    );
+    expect(roomRuntimeRepository.ensureExists).not.toHaveBeenCalled();
+  });
+
   it('claims an idle assigned room and starts the exam atomically', async () => {
     const tx = { transaction: 'test' };
     const doctorAssignmentsRepository = {

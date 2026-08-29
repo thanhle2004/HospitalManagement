@@ -5,6 +5,7 @@ export const DoctorAssignmentResponseSchema = z.object({
   id: z.number(),
   startTime: z.date(),
   endTime: z.date().nullable(),
+  roomConfirmedAt: z.date().nullable(),
   doctor: z.object({
     id: z.string(),
     email: z.string(),
