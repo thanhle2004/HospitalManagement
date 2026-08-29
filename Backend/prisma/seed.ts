@@ -2,6 +2,8 @@ import {
   PrismaClient,
   UserRole,
   RoomStatus,
+  DeviceStatus,
+  DeviceType,
   VisitStatus,
   VisitStepStatus,
   AssignmentStatus,
@@ -81,11 +83,12 @@ async function seedRoom(
   name: string,
   roomTypeId: number,
   status: RoomStatus,
+  sortOrder: number,
 ) {
   const room = await prisma.room.upsert({
     where: { roomNumber },
-    update: { status, roomTypeId },
-    create: { roomNumber, name, roomTypeId, status },
+    update: { name, status, roomTypeId, sortOrder },
+    create: { roomNumber, name, roomTypeId, status, sortOrder },
   });
   // RoomsService.create() thật sự sẽ tự tạo RoomRuntime kèm theo — seed cũng
   // phải làm vậy để phòng dùng được ngay cho luồng "start exam" thật.
@@ -95,6 +98,153 @@ async function seedRoom(
     create: { roomId: room.id },
   });
   return room;
+}
+
+interface HospitalRoomTypes {
+  vitalSigns: number;
+  internal: number;
+  surgery: number;
+  eye: number;
+  ent: number;
+  dental: number;
+  dermatology: number;
+  obstetrics: number;
+  pediatrics: number;
+  cardiology: number;
+  laboratory: number;
+  imaging: number;
+  ultrasound: number;
+  ecg: number;
+  conclusion: number;
+}
+
+interface PhysicalRoomSeed {
+  roomNumber: string;
+  name: string;
+  roomTypeId: number;
+  status: RoomStatus;
+  sortOrder: number;
+}
+
+async function seedQrScanner(
+  room: Awaited<ReturnType<typeof seedRoom>>,
+  secretKeyHash: string,
+) {
+  const status =
+    room.status === RoomStatus.ACTIVE
+      ? DeviceStatus.ACTIVE
+      : DeviceStatus.INACTIVE;
+  return prisma.device.upsert({
+    where: { code: `QR-${room.roomNumber}` },
+    update: {
+      name: `Máy quét QR phòng ${room.roomNumber}`,
+      roomId: room.id,
+      type: DeviceType.QR_SCANNER,
+      status,
+    },
+    create: {
+      code: `QR-${room.roomNumber}`,
+      name: `Máy quét QR phòng ${room.roomNumber}`,
+      secretKeyHash,
+      roomId: room.id,
+      type: DeviceType.QR_SCANNER,
+      status,
+    },
+  });
+}
+
+async function seedPhysicalHospitalRooms(roomTypes: HospitalRoomTypes) {
+  const fixtures: PhysicalRoomSeed[] = [
+    // Tầng trệt — tiếp nhận, đo sinh hiệu và ưu tiên người lớn tuổi.
+    { roomNumber: 'TN01', name: 'Tiếp nhận & Sinh hiệu 1', roomTypeId: roomTypes.vitalSigns, status: RoomStatus.ACTIVE, sortOrder: 1 },
+    { roomNumber: 'TN02', name: 'Tiếp nhận & Sinh hiệu 2', roomTypeId: roomTypes.vitalSigns, status: RoomStatus.ACTIVE, sortOrder: 2 },
+    { roomNumber: 'TN03', name: 'Tiếp nhận ưu tiên', roomTypeId: roomTypes.vitalSigns, status: RoomStatus.ACTIVE, sortOrder: 3 },
+
+    // Tầng 1 — khu khám ngoại trú và các chuyên khoa phổ biến.
+    { roomNumber: 'P101', name: 'Phòng Nội tổng quát 1', roomTypeId: roomTypes.internal, status: RoomStatus.ACTIVE, sortOrder: 101 },
+    { roomNumber: 'P102', name: 'Phòng Nội tổng quát 2', roomTypeId: roomTypes.internal, status: RoomStatus.ACTIVE, sortOrder: 102 },
+    { roomNumber: 'P103', name: 'Phòng khám Mắt 1', roomTypeId: roomTypes.eye, status: RoomStatus.ACTIVE, sortOrder: 103 },
+    { roomNumber: 'P104', name: 'Phòng khám Mắt 2 (bảo trì)', roomTypeId: roomTypes.eye, status: RoomStatus.MAINTENANCE, sortOrder: 104 },
+    { roomNumber: 'P105', name: 'Phòng khám Ngoại 1', roomTypeId: roomTypes.surgery, status: RoomStatus.ACTIVE, sortOrder: 105 },
+    { roomNumber: 'P106', name: 'Phòng khám Ngoại 2', roomTypeId: roomTypes.surgery, status: RoomStatus.ACTIVE, sortOrder: 106 },
+    { roomNumber: 'P107', name: 'Phòng Tai Mũi Họng 1', roomTypeId: roomTypes.ent, status: RoomStatus.ACTIVE, sortOrder: 107 },
+    { roomNumber: 'P108', name: 'Phòng Tai Mũi Họng 2', roomTypeId: roomTypes.ent, status: RoomStatus.ACTIVE, sortOrder: 108 },
+    { roomNumber: 'P109', name: 'Phòng Răng Hàm Mặt 1', roomTypeId: roomTypes.dental, status: RoomStatus.ACTIVE, sortOrder: 109 },
+    { roomNumber: 'P110', name: 'Phòng Răng Hàm Mặt 2', roomTypeId: roomTypes.dental, status: RoomStatus.ACTIVE, sortOrder: 110 },
+    { roomNumber: 'P111', name: 'Phòng khám Da liễu', roomTypeId: roomTypes.dermatology, status: RoomStatus.ACTIVE, sortOrder: 111 },
+
+    // Tầng 2 — sản, nhi và tim mạch được tách thành khu yên tĩnh hơn.
+    { roomNumber: 'P201', name: 'Phòng khám Sản 1', roomTypeId: roomTypes.obstetrics, status: RoomStatus.ACTIVE, sortOrder: 201 },
+    { roomNumber: 'P202', name: 'Phòng khám Sản 2', roomTypeId: roomTypes.obstetrics, status: RoomStatus.ACTIVE, sortOrder: 202 },
+    { roomNumber: 'P203', name: 'Phòng khám Nhi 1', roomTypeId: roomTypes.pediatrics, status: RoomStatus.ACTIVE, sortOrder: 203 },
+    { roomNumber: 'P204', name: 'Phòng khám Nhi 2', roomTypeId: roomTypes.pediatrics, status: RoomStatus.ACTIVE, sortOrder: 204 },
+    { roomNumber: 'P205', name: 'Phòng khám Tim mạch 1', roomTypeId: roomTypes.cardiology, status: RoomStatus.ACTIVE, sortOrder: 205 },
+    { roomNumber: 'P206', name: 'Phòng khám Tim mạch 2', roomTypeId: roomTypes.cardiology, status: RoomStatus.ACTIVE, sortOrder: 206 },
+
+    // Tầng 3 — khu cận lâm sàng.
+    { roomNumber: 'CLS301', name: 'Phòng lấy mẫu Xét nghiệm 1', roomTypeId: roomTypes.laboratory, status: RoomStatus.ACTIVE, sortOrder: 301 },
+    { roomNumber: 'CLS302', name: 'Phòng lấy mẫu Xét nghiệm 2', roomTypeId: roomTypes.laboratory, status: RoomStatus.ACTIVE, sortOrder: 302 },
+    { roomNumber: 'CLS303', name: 'Phòng Xét nghiệm ưu tiên', roomTypeId: roomTypes.laboratory, status: RoomStatus.ACTIVE, sortOrder: 303 },
+    { roomNumber: 'CLS304', name: 'Phòng X-quang kỹ thuật số', roomTypeId: roomTypes.imaging, status: RoomStatus.ACTIVE, sortOrder: 304 },
+    { roomNumber: 'CLS305', name: 'Phòng Chẩn đoán hình ảnh 2', roomTypeId: roomTypes.imaging, status: RoomStatus.ACTIVE, sortOrder: 305 },
+    { roomNumber: 'CLS306', name: 'Phòng Siêu âm 1', roomTypeId: roomTypes.ultrasound, status: RoomStatus.ACTIVE, sortOrder: 306 },
+    { roomNumber: 'CLS307', name: 'Phòng Siêu âm 2', roomTypeId: roomTypes.ultrasound, status: RoomStatus.ACTIVE, sortOrder: 307 },
+    { roomNumber: 'CLS308', name: 'Phòng Điện tim', roomTypeId: roomTypes.ecg, status: RoomStatus.ACTIVE, sortOrder: 308 },
+    { roomNumber: 'CLS309', name: 'Phòng Điện tim 2 (bảo trì)', roomTypeId: roomTypes.ecg, status: RoomStatus.MAINTENANCE, sortOrder: 309 },
+
+    // Tầng 4 — bác sĩ tổng hợp kết quả và tư vấn cuối quy trình.
+    { roomNumber: 'P401', name: 'Phòng Tư vấn kết luận 1', roomTypeId: roomTypes.conclusion, status: RoomStatus.ACTIVE, sortOrder: 401 },
+    { roomNumber: 'P402', name: 'Phòng Tư vấn kết luận 2', roomTypeId: roomTypes.conclusion, status: RoomStatus.ACTIVE, sortOrder: 402 },
+  ];
+
+  const scannerSecretHash = await bcrypt.hash('Scanner123!', 10);
+  const roomsByNumber = new Map<
+    string,
+    Awaited<ReturnType<typeof seedRoom>>
+  >();
+
+  for (const fixture of fixtures) {
+    const room = await seedRoom(
+      fixture.roomNumber,
+      fixture.name,
+      fixture.roomTypeId,
+      fixture.status,
+      fixture.sortOrder,
+    );
+    await seedQrScanner(room, scannerSecretHash);
+    roomsByNumber.set(room.roomNumber, room);
+  }
+
+  const activeRooms = await prisma.room.findMany({
+    where: {
+      roomTypeId: { in: Object.values(roomTypes) },
+      status: RoomStatus.ACTIVE,
+    },
+    select: { roomTypeId: true },
+  });
+  const coveredRoomTypeIds = new Set(activeRooms.map((room) => room.roomTypeId));
+  const missingRoomTypes = Object.entries(roomTypes)
+    .filter(([, roomTypeId]) => !coveredRoomTypeIds.has(roomTypeId))
+    .map(([key]) => key);
+  if (missingRoomTypes.length > 0) {
+    throw new Error(
+      `Thiếu phòng vật lý ACTIVE cho các loại phòng: ${missingRoomTypes.join(', ')}`,
+    );
+  }
+
+  const activeCount = fixtures.filter(
+    (room) => room.status === RoomStatus.ACTIVE,
+  ).length;
+  console.log(
+    `✅ Phòng vật lý: ${fixtures.length} phòng (${activeCount} hoạt động, ${fixtures.length - activeCount} bảo trì), phủ đủ ${Object.keys(roomTypes).length} loại phòng`,
+  );
+  console.log(`✅ Thiết bị QR: ${fixtures.length} máy quét gắn đúng phòng vật lý`);
+  return {
+    roomsByNumber,
+    totalRoomCount: fixtures.length,
+    activeRoomCount: activeCount,
+    maintenanceRoomCount: fixtures.length - activeCount,
+  };
 }
 
 async function seedPatient(phone: string, fullName: string, patientTypeId: number) {
@@ -251,23 +401,7 @@ async function seedClinicService(service: ClinicServiceSeed) {
   };
 }
 
-async function seedClinicServices(roomTypes: {
-  vitalSigns: number;
-  internal: number;
-  surgery: number;
-  eye: number;
-  ent: number;
-  dental: number;
-  dermatology: number;
-  obstetrics: number;
-  pediatrics: number;
-  cardiology: number;
-  laboratory: number;
-  imaging: number;
-  ultrasound: number;
-  ecg: number;
-  conclusion: number;
-}) {
+async function seedClinicServices(roomTypes: HospitalRoomTypes) {
   const services: ClinicServiceSeed[] = [
     {
       code: 'GENERAL_CHECKUP',
@@ -578,15 +712,7 @@ async function main() {
   const roomTypeEcg = await seedRoomType('Điện tim', 10);
   const roomTypeConclusion = await seedRoomType('Tư vấn kết luận', 10);
 
-  // P102 CỐ TÌNH không gán bác sĩ trực — dùng để test cảnh báo trên Dashboard
-  const roomP101 = await seedRoom('P101', 'Phòng Nội 1', roomTypeInternal.id, RoomStatus.ACTIVE);
-  const roomP102 = await seedRoom('P102', 'Phòng Nội 2', roomTypeInternal.id, RoomStatus.ACTIVE);
-  const roomP103 = await seedRoom('P103', 'Phòng Mắt 1', roomTypeEye.id, RoomStatus.ACTIVE);
-  await seedRoom('P104', 'Phòng Mắt 2 (bảo trì)', roomTypeEye.id, RoomStatus.MAINTENANCE);
-  console.log('✅ Room: P101, P102 (không bác sĩ trực), P103 = ACTIVE · P104 = MAINTENANCE');
-
-  console.log('\n--- 10 dịch vụ khám mô phỏng ---');
-  const clinicServices = await seedClinicServices({
+  const hospitalRoomTypes: HospitalRoomTypes = {
     vitalSigns: roomTypeVitalSigns.id,
     internal: roomTypeInternal.id,
     surgery: roomTypeSurgery.id,
@@ -602,7 +728,17 @@ async function main() {
     ultrasound: roomTypeUltrasound.id,
     ecg: roomTypeEcg.id,
     conclusion: roomTypeConclusion.id,
-  });
+  };
+
+  console.log('\n--- Hạ tầng phòng khám vật lý ---');
+  const hospitalRooms = await seedPhysicalHospitalRooms(hospitalRoomTypes);
+  const { roomsByNumber } = hospitalRooms;
+  const roomP101 = roomsByNumber.get('P101')!;
+  const roomP102 = roomsByNumber.get('P102')!;
+  const roomP103 = roomsByNumber.get('P103')!;
+
+  console.log('\n--- 10 dịch vụ khám mô phỏng ---');
+  const clinicServices = await seedClinicServices(hospitalRoomTypes);
   const generalCheckup = clinicServices.get('GENERAL_CHECKUP')!;
   const flow = generalCheckup.flow;
   const flowStepInternal = generalCheckup.stepsByCode.get('INTERNAL')!;
@@ -755,13 +891,15 @@ async function main() {
 
   console.log('✅ Visit: 3 lượt hôm nay (1 đang khám, 1 đang chờ, 1 đã hoàn thành)');
 
-  console.log('\n📊 Dashboard PHẢI hiển thị đúng:');
-  console.log('   • Bệnh nhân khám hôm nay : 3');
-  console.log('   • Đang được khám         : 1');
-  console.log('   • Phòng đang hoạt động   : 3   (P101, P102, P103 — P104 đang MAINTENANCE)');
-  console.log('   • Bác sĩ đang trực       : 2   (BS A tại P101, BS B tại P103)');
-  console.log('   • Cảnh báo               : "P102" ACTIVE nhưng không có bác sĩ trực');
-  console.log('\nℹ️  Chạy lại `npm run prisma:seed` bao nhiêu lần cũng ra đúng 5 số liệu trên (đã tự dọn dữ liệu demo cũ).');
+  console.log('\n📊 Dữ liệu mô phỏng sẵn sàng:');
+  console.log(
+    `   • Hạ tầng              : ${hospitalRooms.totalRoomCount} phòng (${hospitalRooms.activeRoomCount} hoạt động, ${hospitalRooms.maintenanceRoomCount} bảo trì)`,
+  );
+  console.log('   • Bao phủ dịch vụ       : 15/15 loại phòng có phòng vật lý ACTIVE');
+  console.log('   • Ca trực mẫu           : BS A tại P101, BS B tại P103');
+  console.log('   • Lượt khám demo        : 3 (1 đang khám, 1 đang chờ, 1 hoàn thành)');
+  console.log('   • Bước test tiếp theo   : Admin phân bác sĩ cho phòng cần test rồi tạo lượt khám');
+  console.log('\nℹ️  Seed có thể chạy lại nhiều lần mà không tạo trùng phòng hoặc thiết bị QR.');
 }
 
 main()
