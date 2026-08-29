@@ -63,7 +63,8 @@ function errorText(error: unknown): string {
       "auth/quota-exceeded": "Firebase đã hết hạn mức gửi SMS của dự án",
       "auth/captcha-check-failed": "Không thể xác minh reCAPTCHA — vui lòng thử lại",
       "auth/app-not-authorized": "Domain hiện tại chưa được Firebase cho phép",
-      "auth/operation-not-allowed": "Firebase Phone Authentication chưa được bật",
+      "auth/operation-not-allowed":
+        "Firebase chưa cho phép đăng nhập số điện thoại hoặc vùng SMS này",
       "auth/invalid-app-credential": "Phiên reCAPTCHA không hợp lệ — vui lòng tải lại trang",
     };
     return messages[error.code] ?? "Firebase không thể xác thực số điện thoại";
