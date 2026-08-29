@@ -38,8 +38,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       disabled={disabled || isLoading}
       {...props}
     >
-      {isLoading ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : null}
-      {children}
+      <Loader2
+        aria-hidden="true"
+        className={cn("h-4 w-4 shrink-0 animate-spin", !isLoading && "hidden")}
+      />
+      <span className="inline-flex items-center justify-center gap-2">{children}</span>
     </button>
   ),
 );
