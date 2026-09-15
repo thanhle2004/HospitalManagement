@@ -232,6 +232,30 @@ npm run typecheck
 npm run lint
 ```
 
+### System flow test trên API đang chạy
+
+Sau khi đã chạy seed và mở Backend ở port 3000:
+
+```powershell
+npm run prisma:seed
+npm run start:dev
+# mở terminal khác
+npm run test:system
+```
+
+Luồng này tự động kiểm tra: Admin đăng nhập và tạo workflow DAG, từ chối cycle,
+Patient tạo Visit, Routing chọn phòng, thiết bị QR check-in, Doctor xác nhận phòng,
+xem hàng đợi, bắt đầu/hoàn tất từng bước, mở khóa bước kế tiếp, hoàn tất Visit và
+ma trận phân quyền Admin/Doctor/Patient/Device. Workflow, Patient, Visit và refresh
+token tạm được dọn trong `finally`, kể cả khi test thất bại giữa chừng.
+
+Có thể đổi URL/credential fixture qua `SYSTEM_TEST_API_URL`,
+`SYSTEM_TEST_ADMIN_EMAIL`, `SYSTEM_TEST_ADMIN_PASSWORD`,
+`SYSTEM_TEST_DOCTOR_PASSWORD` và `SYSTEM_TEST_SCANNER_SECRET`. Test này dùng
+Patient JWT ngắn hạn ký bằng secret local để tập trung vào luồng khám; việc gửi SMS
+và xác minh Firebase Phone Authentication cần kiểm tra riêng bằng Firebase test phone
+number hoặc Emulator.
+
 Đã test:
 - `graph.util.ts` — `topologicalSort` (Kahn's algorithm), `wouldCreateCycle`, `findReadyNodes`: chuỗi tuyến tính, node độc lập, đúng ví dụ trong spec §6 (A→C, B→E, D), phát hiện cycle trực tiếp/gián tiếp, multi-dependency (1 node chờ ≥2 tiền nhiệm)
 - `generate-otp.util.ts` — đúng độ dài, không lặp cố định

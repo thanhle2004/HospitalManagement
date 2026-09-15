@@ -52,8 +52,7 @@ async function seedDefaultPatientType() {
   return patientType;
 }
 
-async function seedDoctor(email: string, fullName: string) {
-  const passwordHash = await bcrypt.hash('Doctor123!', 10);
+async function seedDoctor(email: string, fullName: string, passwordHash: string) {
   return prisma.user.upsert({
     where: { email },
     update: {},
@@ -125,6 +124,37 @@ interface PhysicalRoomSeed {
   status: RoomStatus;
   sortOrder: number;
 }
+
+interface DemoDoctorRoomAssignmentSeed {
+  email: string;
+  fullName: string;
+  roomNumber: string;
+  roomConfirmed: boolean;
+}
+
+// Phủ phần lớn phòng ACTIVE để dashboard/Doctor Workspace có dữ liệu thực tế,
+// nhưng chủ động chừa 10 phòng chưa có bác sĩ để tiếp tục test cảnh báo cuộn.
+const DEMO_DOCTOR_ROOM_ASSIGNMENTS: DemoDoctorRoomAssignmentSeed[] = [
+  { email: 'bs.a@hospital.local', fullName: 'BS. Nguyễn Văn A', roomNumber: 'P101', roomConfirmed: true },
+  { email: 'bs.b@hospital.local', fullName: 'BS. Trần Thị B', roomNumber: 'P103', roomConfirmed: false },
+  { email: 'bs.cuong@hospital.local', fullName: 'BS. Lê Minh Cường', roomNumber: 'TN01', roomConfirmed: true },
+  { email: 'bs.ha@hospital.local', fullName: 'BS. Phạm Thu Hà', roomNumber: 'TN02', roomConfirmed: true },
+  { email: 'bs.nam@hospital.local', fullName: 'BS. Võ Hoàng Nam', roomNumber: 'P105', roomConfirmed: true },
+  { email: 'bs.huy@hospital.local', fullName: 'BS. Đặng Gia Huy', roomNumber: 'P106', roomConfirmed: false },
+  { email: 'bs.linh@hospital.local', fullName: 'BS. Nguyễn Thùy Linh', roomNumber: 'P107', roomConfirmed: true },
+  { email: 'bs.bao@hospital.local', fullName: 'BS. Trần Quốc Bảo', roomNumber: 'P109', roomConfirmed: true },
+  { email: 'bs.mai@hospital.local', fullName: 'BS. Lâm Ngọc Mai', roomNumber: 'P110', roomConfirmed: false },
+  { email: 'bs.tuan@hospital.local', fullName: 'BS. Hoàng Anh Tuấn', roomNumber: 'P111', roomConfirmed: true },
+  { email: 'bs.van@hospital.local', fullName: 'BS. Bùi Thanh Vân', roomNumber: 'P201', roomConfirmed: true },
+  { email: 'bs.long@hospital.local', fullName: 'BS. Phan Đức Long', roomNumber: 'P203', roomConfirmed: true },
+  { email: 'bs.chau@hospital.local', fullName: 'BS. Vũ Minh Châu', roomNumber: 'P205', roomConfirmed: true },
+  { email: 'bs.yen@hospital.local', fullName: 'BS. Trương Hải Yến', roomNumber: 'CLS301', roomConfirmed: true },
+  { email: 'bs.an@hospital.local', fullName: 'BS. Đỗ Khánh An', roomNumber: 'CLS302', roomConfirmed: false },
+  { email: 'bs.minh@hospital.local', fullName: 'BS. Nguyễn Quang Minh', roomNumber: 'CLS304', roomConfirmed: true },
+  { email: 'bs.trang@hospital.local', fullName: 'BS. Lê Thu Trang', roomNumber: 'CLS306', roomConfirmed: true },
+  { email: 'bs.khoa@hospital.local', fullName: 'BS. Trần Minh Khoa', roomNumber: 'CLS308', roomConfirmed: true },
+  { email: 'bs.lan@hospital.local', fullName: 'BS. Phạm Ngọc Lan', roomNumber: 'P401', roomConfirmed: true },
+];
 
 async function seedQrScanner(
   room: Awaited<ReturnType<typeof seedRoom>>,
@@ -692,9 +722,19 @@ async function main() {
 
   console.log('\n--- Dữ liệu demo cho Dashboard ---');
 
-  const doctorA = await seedDoctor('bs.a@hospital.local', 'BS. Nguyễn Văn A');
-  const doctorB = await seedDoctor('bs.b@hospital.local', 'BS. Trần Thị B');
-  console.log('✅ Doctor demo accounts created (credentials omitted from logs)');
+  const doctorPasswordHash = await bcrypt.hash('Doctor123!', 10);
+  const doctorsByEmail = new Map<
+    string,
+    Awaited<ReturnType<typeof seedDoctor>>
+  >();
+  for (const fixture of DEMO_DOCTOR_ROOM_ASSIGNMENTS) {
+    const doctor = await seedDoctor(fixture.email, fixture.fullName, doctorPasswordHash);
+    doctorsByEmail.set(fixture.email, doctor);
+  }
+  const doctorA = doctorsByEmail.get('bs.a@hospital.local')!;
+  console.log(
+    `✅ ${doctorsByEmail.size} tài khoản Doctor demo đã sẵn sàng (credentials omitted from logs)`,
+  );
 
   const roomTypeVitalSigns = await seedRoomType('Tiếp nhận & Đo sinh hiệu', 8);
   const roomTypeInternal = await seedRoomType('Khám Nội', 15);
@@ -761,20 +801,44 @@ async function main() {
   await prisma.visit.deleteMany({
     where: { patientId: { in: [patient1.id, patient2.id, patient3.id] } },
   });
-  await prisma.doctorAssignment.deleteMany({
-    where: { doctorId: { in: [doctorA.id, doctorB.id] }, endTime: null },
-  });
-
   const now = new Date();
   const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  const roomConfirmedAt = new Date(now.getTime() - 50 * 60 * 1000);
+  const doctorAssignmentRows = DEMO_DOCTOR_ROOM_ASSIGNMENTS.map((fixture) => {
+    const doctor = doctorsByEmail.get(fixture.email);
+    const room = roomsByNumber.get(fixture.roomNumber);
+    if (!doctor || !room || room.status !== RoomStatus.ACTIVE) {
+      throw new Error(
+        `Không thể tạo ca trực demo: ${fixture.email} → ${fixture.roomNumber}`,
+      );
+    }
+    return {
+      doctorId: doctor.id,
+      roomId: room.id,
+      startTime: oneHourAgo,
+      endTime: null,
+      roomConfirmedAt: fixture.roomConfirmed ? roomConfirmedAt : null,
+    };
+  });
 
-  await prisma.doctorAssignment.create({
-    data: { doctorId: doctorA.id, roomId: roomP101.id, startTime: oneHourAgo, endTime: null },
+  // Seed phải lặp lại an toàn: dọn ca đang mở của chính roster demo và các
+  // phòng fixture trước khi tạo lại, tránh cộng dồn ca trực sau mỗi lần chạy.
+  await prisma.doctorAssignment.deleteMany({
+    where: {
+      endTime: null,
+      OR: [
+        { doctorId: { in: doctorAssignmentRows.map((row) => row.doctorId) } },
+        { roomId: { in: doctorAssignmentRows.map((row) => row.roomId) } },
+      ],
+    },
   });
-  await prisma.doctorAssignment.create({
-    data: { doctorId: doctorB.id, roomId: roomP103.id, startTime: oneHourAgo, endTime: null },
-  });
-  console.log('✅ Ca trực: BS A → P101, BS B → P103 (P102 bỏ trống để test cảnh báo)');
+  await prisma.doctorAssignment.createMany({ data: doctorAssignmentRows });
+  const confirmedDoctorCount = doctorAssignmentRows.filter(
+    (row) => row.roomConfirmedAt !== null,
+  ).length;
+  console.log(
+    `✅ Ca trực: ${doctorAssignmentRows.length} bác sĩ/phòng (${confirmedDoctorCount} đã xác nhận phòng, ${doctorAssignmentRows.length - confirmedDoctorCount} chờ xác nhận)`,
+  );
 
   // Visit 1 — ĐANG ĐƯỢC KHÁM (VisitAssignment.status = IN_PROGRESS tại P101)
   const visit1 = await prisma.visit.create({
@@ -896,7 +960,9 @@ async function main() {
     `   • Hạ tầng              : ${hospitalRooms.totalRoomCount} phòng (${hospitalRooms.activeRoomCount} hoạt động, ${hospitalRooms.maintenanceRoomCount} bảo trì)`,
   );
   console.log('   • Bao phủ dịch vụ       : 15/15 loại phòng có phòng vật lý ACTIVE');
-  console.log('   • Ca trực mẫu           : BS A tại P101, BS B tại P103');
+  console.log(
+    `   • Ca trực mẫu           : ${doctorAssignmentRows.length} phòng có bác sĩ (${confirmedDoctorCount} đã xác nhận)`,
+  );
   console.log('   • Lượt khám demo        : 3 (1 đang khám, 1 đang chờ, 1 hoàn thành)');
   console.log('   • Bước test tiếp theo   : Admin phân bác sĩ cho phòng cần test rồi tạo lượt khám');
   console.log('\nℹ️  Seed có thể chạy lại nhiều lần mà không tạo trùng phòng hoặc thiết bị QR.');

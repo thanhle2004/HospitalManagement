@@ -29,6 +29,7 @@
     "db:backup": "powershell -NoProfile -File scripts/database/backup.ps1",
     "test": "jest",
     "test:ci": "jest --runInBand",
+    "test:system": "ts-node --transpile-only scripts/system-test.ts",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage"
   },
