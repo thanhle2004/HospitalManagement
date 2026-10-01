@@ -151,6 +151,18 @@ Manual room transfer, priority/emergency, recall/no-show, requeue, inserted step
 - Mutation cookie/BFF giữ CSRF origin defense; production yêu cầu HTTPS/Secure cookie.
 - File, webhook, payment và external integration phải có authorization, validation, replay protection và idempotency trước khi mở.
 
+### 8.1 Identity/RBAC semantics
+
+Ba khái niệm dưới đây độc lập và không được dùng thay thế cho nhau:
+
+- **`effectiveRoles`**: tập các role assignment hiện hành của một Staff. Đây là dữ liệu tổ chức/nhiệm vụ, không tự thân cho phép một hành động.
+- **`effectivePermissions`**: hợp các permission được suy ra từ `effectiveRoles` hiện hành. Đây là cơ sở cho authorization backend, sau khi kết hợp resource scope, ownership/care relationship và trạng thái tài nguyên nếu use case yêu cầu.
+- **Workspace/landing selection**: quyết định UX/navigation sau authentication. Preferred/primary workspace, nếu cần, chỉ là preference hoặc routing UX; nó không cấp role, không cấp permission và không phải authorization source.
+
+Do đó: role không đồng nghĩa permission; permission không tự quyết định workspace. Backend luôn authorize bằng `effectivePermissions` cộng policy/scope liên quan, bất kể UI đã điều hướng người dùng đến workspace nào.
+
+`users.role` tiếp tục chỉ là compatibility layer cho JWT, proxy và consumer legacy cho đến khi từng consumer được inventory, migrate và kiểm chứng an toàn. Nó không phải nguồn multi-role đích và không được âm thầm mở rộng thành “primary authorization role”. Việc contract hoặc thay đổi field này cần compatibility window, test lockout/privilege drift và rollback rõ ràng.
+
 ## 9. Capability status tại Slice 1E
 
 | Domain | Status | Bằng chứng/gap chính |
@@ -178,6 +190,27 @@ Manual room transfer, priority/emergency, recall/no-show, requeue, inserted step
 | Device integration | PARTIAL | Device auth/manage/QR check-in có; attestation/offline/replay hardening chưa có |
 | Patient application integration | PARTIAL | Web patient login/profile/service/Visit/QR có; external mobile source không nằm trong repo; clinical/appointment/finance portal chưa có |
 | Inpatient/insurance/deep external HIS | OUT OF SCOPE pending approval | Có trong tài liệu target rộng nhưng không được xem là cam kết hiện hành |
+
+### 9.1 Project-level Definition of Done
+
+Approved thesis scope chỉ được xem là **feature-complete** khi đồng thời thỏa các điều kiện sau. Danh sách này định nghĩa mức hoàn thành cho scope đã được phê duyệt; nó không tự mở rộng scope hoặc đưa các non-goal vào dự án.
+
+- Appointment → Reception → idempotent Visit handoff hoạt động end-to-end.
+- Existing Visit routing, QR check-in và room queue workflow vẫn regression-safe, giữ nguyên routing semantics đã đóng băng.
+- Nurse có thể ghi nhiều lần đo vital signs hợp lệ và Doctor xem được diễn biến.
+- Doctor có thể tạo, hoàn tất/ký và điều chỉnh clinical documentation/diagnosis theo lifecycle đã duyệt.
+- Clinical order/result hoạt động end-to-end trong phạm vi cận lâm sàng được approved.
+- Doctor có thể phát hành prescription bất biến; Pharmacist có thể dispense đủ/thiếu/từ chối theo policy.
+- Billing có thể tạo invoice và ghi nhận payment chính xác, idempotent và có reconciliation.
+- Completion policy hoạt động quanh Visit hiện hữu mà không thay đổi routing semantics.
+- Patient có thể xem published visit summary và follow-up information thuộc chính mình.
+- Authorization và resource scope được enforce tại backend cho mọi actor tương ứng; UI không phải security boundary.
+- Sensitive read/write/sign/dispense/payment/refund/export có audit phù hợp, đã redact và truy vết được.
+- Critical API, integration và browser workflow có automated regression coverage, gồm happy path và deny/error path quan trọng.
+- Migration và reconciliation chạy được từ supported clean baseline, có rollback/recovery boundary được kiểm chứng.
+- Không còn placeholder hoặc control không hoạt động được trình bày như completed functionality.
+- Không còn unresolved critical/high security hoặc data-integrity defect trong approved scope.
+- Lint, type-check, production build và các regression suite liên quan đều xanh tại release candidate.
 
 ## 10. Phase 0 → Slice 1E review
 
@@ -223,6 +256,16 @@ Không có TODO database migration đang failed tại local; 11 migration đã �
 2. **1G — Audit policy platform**: action catalog, metadata schema/redaction, sensitive-read hook, actor effective roles và retention/query contract.
 3. **1H — Contract and E2E harness**: OpenAPI contract check/generated types PoC, Staff role×endpoint matrix, browser/API happy-path regression.
 
+```text
+Slice 1F
+  -> Slice 1G
+  -> Slice 1H
+  -> FOUNDATION CLOSED
+  -> Slice 2A Appointment
+```
+
+Sau Slice 1H, không tự động thêm platform/foundation slice mới trước business roadmap. Foundation work chỉ được chen trước business slice kế tiếp khi **đồng thời** có concrete blocker được chứng minh từ implementation hiện tại, blocker không thể xử lý an toàn bên trong business slice, impact/dependency được document và owner phê duyệt. Modernization, cleanup hoặc infrastructure perfection tự thân không phải lý do trì hoãn core business workflow.
+
 ### Core business workflow
 
 4. **2A — Appointment foundation**: schedule/slot/appointment state/history; chưa tạo Visit tự động.
@@ -256,6 +299,7 @@ Trước khi code, slice owner phải ghi lại:
 - [ ] Đã định nghĩa actor, state transition, acceptance criteria và API/UI contract.
 - [ ] Đã định nghĩa unit/integration/authorization/migration/regression test.
 - [ ] Đã chốt rollback boundary và phần không thuộc scope.
+- [ ] Slice vẫn có một reviewable rollback boundary. Nếu scope tăng đáng kể trong implementation hoặc không còn reviewable, phải dừng và đề xuất split thay vì tiếp tục mở rộng (ví dụ `1F-A`/`1F-B` cho convergence và self-service closure).
 
 Sau khi hoàn thành:
 
