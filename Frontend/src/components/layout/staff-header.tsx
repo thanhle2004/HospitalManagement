@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { LogOut, Bell, Search, CircleUserRound } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 import { useLogout } from "@/features/auth/hooks";
@@ -88,7 +89,7 @@ export function StaffHeader({ showSearch = true }: { showSearch?: boolean }) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer">
+            <DropdownMenuItem className="cursor-pointer" render={<Link href={user?.role === "ADMIN" ? "/admin/profile" : "/doctor/profile"} />}>
               <CircleUserRound className="mr-2 h-4 w-4" />
               <span>Hồ sơ cá nhân</span>
             </DropdownMenuItem>

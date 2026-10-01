@@ -30,6 +30,7 @@ export class AuthService {
   async login(
     dto: LoginDto,
     concealAccountState = false,
+    context: { ipAddress?: string; deviceInfo?: string } = {},
   ): Promise<TokenResponseDto> {
     const user = await this.usersRepository.findByEmail(dto.email);
     if (!user) {
@@ -55,7 +56,13 @@ export class AuthService {
 
     await this.usersRepository.updateLastLogin(user.id);
 
-    return this.issueTokens(user.id, user.role, user.tokenVersion);
+    return this.issueTokens(
+      user.id,
+      user.role,
+      user.tokenVersion,
+      undefined,
+      context,
+    );
   }
 
   /**
@@ -63,7 +70,10 @@ export class AuthService {
    * cấp token mới — nếu 1 refresh token bị đánh cắp và dùng lại sau khi đã
    * bị rotate, request đó sẽ fail vì token cũ không còn "valid" trong DB.
    */
-  async refresh(dto: RefreshTokenDto): Promise<TokenResponseDto> {
+  async refresh(
+    dto: RefreshTokenDto,
+    context: { ipAddress?: string; deviceInfo?: string } = {},
+  ): Promise<TokenResponseDto> {
     let payload: JwtPayload;
     try {
       payload = await this.jwtService.verifyAsync<JwtPayload>(
@@ -102,6 +112,7 @@ export class AuthService {
         user.role,
         user.tokenVersion,
         tx,
+        context,
       );
     });
   }
@@ -113,13 +124,48 @@ export class AuthService {
     });
   }
 
+  listSessions(userId: string, currentSessionId?: string) {
+    return this.refreshTokenRepository.findActiveForUser(userId).then((items) =>
+      items.map((item) => ({ ...item, current: item.id === currentSessionId })),
+    );
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    const result = await this.refreshTokenRepository.revokeById(
+      userId,
+      sessionId,
+    );
+    if (!result.count) {
+      throw new UnauthorizedException('Phiên không tồn tại hoặc đã bị thu hồi');
+    }
+  }
+
+  async revokeOtherSessions(
+    userId: string,
+    currentSessionId?: string,
+  ): Promise<void> {
+    if (!currentSessionId) {
+      throw new UnauthorizedException(
+        'Phiên legacy không hỗ trợ thao tác này',
+      );
+    }
+    await this.refreshTokenRepository.revokeOthers(userId, currentSessionId);
+  }
+
   private async issueTokens(
     userId: string,
     role: UserRole,
     tokenVersion: number,
     db?: Prisma.TransactionClient,
+    context: { ipAddress?: string; deviceInfo?: string } = {},
   ): Promise<TokenResponseDto> {
-    const payload: JwtPayload = { sub: userId, role, tokenVersion };
+    const sessionId = randomUUID();
+    const payload: JwtPayload = {
+      sub: userId,
+      role,
+      tokenVersion,
+      sid: sessionId,
+    };
 
     const accessExpiresIn = this.configService.get<string>(
       'jwt.accessExpiresIn',
@@ -142,9 +188,13 @@ export class AuthService {
 
     await this.refreshTokenRepository.create(
       {
+        id: sessionId,
         user: { connect: { id: userId } },
         tokenHash: hashToken(refreshToken),
         expiresAt: this.computeExpiryDate(refreshExpiresIn),
+        ipAddress: context.ipAddress,
+        deviceInfo: context.deviceInfo,
+        lastUsedAt: new Date(),
       },
       db,
     );

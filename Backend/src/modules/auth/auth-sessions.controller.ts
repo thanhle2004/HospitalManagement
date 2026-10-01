@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Req,
 } from '@nestjs/common';
@@ -25,6 +26,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
+import { StaffSessionResponseDto } from './dto/staff-session-response.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @ApiTags('Auth Sessions v1')
@@ -43,7 +45,7 @@ export class AuthSessionsController {
   @ApiOkResponse({ type: TokenResponseDto })
   login(@Req() request: Request, @Body() dto: LoginDto) {
     this.limitLogin(request, dto.email);
-    return this.authService.login(dto, true);
+    return this.authService.login(dto, true, this.context(request));
   }
 
   @Public()
@@ -53,7 +55,7 @@ export class AuthSessionsController {
   @ApiOkResponse({ type: TokenResponseDto })
   refresh(@Req() request: Request, @Body() dto: RefreshTokenDto) {
     this.limitRefresh(request, dto.refreshToken);
-    return this.authService.refresh(dto);
+    return this.authService.refresh(dto, this.context(request));
   }
 
   @Get('current')
@@ -70,6 +72,37 @@ export class AuthSessionsController {
   @ApiOperation({ summary: 'Thu hồi toàn bộ phiên Staff và tăng token version' })
   async logout(@CurrentUser() user: JwtPayload): Promise<void> {
     await this.authService.logout(user.sub);
+  }
+
+  @Get('active')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Liệt kê các phiên Staff đang hoạt động' })
+  @ApiOkResponse({ type: StaffSessionResponseDto, isArray: true })
+  list(@CurrentUser() user: JwtPayload) {
+    return this.authService.listSessions(user.sub, user.sid);
+  }
+
+  @Delete('others')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Thu hồi mọi phiên Staff trừ phiên hiện tại' })
+  revokeOthers(@CurrentUser() user: JwtPayload) {
+    return this.authService.revokeOtherSessions(user.sub, user.sid);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Thu hồi một phiên Staff thuộc tài khoản hiện tại' })
+  revokeOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.authService.revokeSession(user.sub, id);
+  }
+
+  private context(request: Request) {
+    return {
+      ipAddress: getClientAddress(request),
+      deviceInfo: request.headers['user-agent'],
+    };
   }
 
   private limitLogin(request: Request, email: string): void {

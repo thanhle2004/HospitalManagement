@@ -65,14 +65,17 @@ describe('AuthService characterization', () => {
         sub: 'user-1',
         role: UserRole.DOCTOR,
         tokenVersion: 0,
+        sid: expect.any(String),
       },
       expect.any(Object),
     );
     expect(refreshTokenRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({
+        id: expect.any(String),
         user: { connect: { id: 'user-1' } },
         tokenHash: expect.not.stringMatching('refresh-token-value'),
         expiresAt: expect.any(Date),
+        lastUsedAt: expect.any(Date),
       }),
       undefined,
     );
@@ -210,5 +213,68 @@ describe('AuthService characterization', () => {
       'user-1',
       tx,
     );
+  });
+
+  it('marks only the JWT session as current when listing active sessions', async () => {
+    const refreshTokenRepository = {
+      findActiveForUser: jest.fn().mockResolvedValue([
+        { id: 'session-current' },
+        { id: 'session-other' },
+      ]),
+    };
+    const service = new AuthService(
+      {} as UsersRepository,
+      refreshTokenRepository as unknown as RefreshTokenRepository,
+      {} as JwtService,
+      {} as ConfigService,
+      {} as PrismaService,
+    );
+
+    await expect(
+      service.listSessions('user-1', 'session-current'),
+    ).resolves.toEqual([
+      { id: 'session-current', current: true },
+      { id: 'session-other', current: false },
+    ]);
+    expect(refreshTokenRepository.findActiveForUser).toHaveBeenCalledWith(
+      'user-1',
+    );
+  });
+
+  it('scopes an individual session revocation to the authenticated user', async () => {
+    const refreshTokenRepository = {
+      revokeById: jest.fn().mockResolvedValue({ count: 1 }),
+    };
+    const service = new AuthService(
+      {} as UsersRepository,
+      refreshTokenRepository as unknown as RefreshTokenRepository,
+      {} as JwtService,
+      {} as ConfigService,
+      {} as PrismaService,
+    );
+
+    await expect(
+      service.revokeSession('user-1', 'session-2'),
+    ).resolves.toBeUndefined();
+    expect(refreshTokenRepository.revokeById).toHaveBeenCalledWith(
+      'user-1',
+      'session-2',
+    );
+  });
+
+  it('requires a session id before revoking all other sessions', async () => {
+    const refreshTokenRepository = { revokeOthers: jest.fn() };
+    const service = new AuthService(
+      {} as UsersRepository,
+      refreshTokenRepository as unknown as RefreshTokenRepository,
+      {} as JwtService,
+      {} as ConfigService,
+      {} as PrismaService,
+    );
+
+    await expect(service.revokeOtherSessions('user-1')).rejects.toThrow(
+      'Phiên legacy không hỗ trợ thao tác này',
+    );
+    expect(refreshTokenRepository.revokeOthers).not.toHaveBeenCalled();
   });
 });

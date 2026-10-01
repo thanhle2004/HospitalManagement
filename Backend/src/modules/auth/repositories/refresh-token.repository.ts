@@ -31,9 +31,41 @@ export class RefreshTokenRepository {
     });
   }
 
-  revokeAllForUser(userId: string, db: Db = this.prisma): Promise<Prisma.BatchPayload> {
+  revokeAllForUser(
+    userId: string,
+    db: Db = this.prisma,
+  ): Promise<Prisma.BatchPayload> {
     return db.refreshToken.updateMany({
       where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  findActiveForUser(userId: string, db: Db = this.prisma) {
+    return db.refreshToken.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      select: {
+        id: true,
+        deviceInfo: true,
+        ipAddress: true,
+        lastUsedAt: true,
+        createdAt: true,
+        expiresAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  revokeById(userId: string, id: string, db: Db = this.prisma) {
+    return db.refreshToken.updateMany({
+      where: { id, userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  revokeOthers(userId: string, currentId: string, db: Db = this.prisma) {
+    return db.refreshToken.updateMany({
+      where: { userId, id: { not: currentId }, revokedAt: null },
       data: { revokedAt: new Date() },
     });
   }
