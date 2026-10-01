@@ -33,7 +33,7 @@ export class AuthController {
   @ApiOkResponse({ type: TokenResponseDto })
   login(@Req() request: RequestWithContext, @Body() dto: LoginDto) {
     this.limitLogin(request, dto.email);
-    return this.authService.login(dto, false, { ipAddress: getClientAddress(request), deviceInfo: request.headers['user-agent'] });
+    return this.authService.login(dto, false, { requestId: getRequestId(request), ipAddress: getClientAddress(request), deviceInfo: request.headers['user-agent'], userAgent: request.headers['user-agent'] });
   }
 
   @Public()
@@ -43,7 +43,7 @@ export class AuthController {
   @ApiOkResponse({ type: TokenResponseDto })
   refresh(@Req() request: RequestWithContext, @Body() dto: RefreshTokenDto) {
     this.limitRefresh(request, dto.refreshToken);
-    return this.authService.refresh(dto, { ipAddress: getClientAddress(request), deviceInfo: request.headers['user-agent'] });
+    return this.authService.refresh(dto, { requestId: getRequestId(request), ipAddress: getClientAddress(request), deviceInfo: request.headers['user-agent'], userAgent: request.headers['user-agent'] });
   }
 
   // Không @Public() => JwtAuthGuard global tự yêu cầu access token hợp lệ

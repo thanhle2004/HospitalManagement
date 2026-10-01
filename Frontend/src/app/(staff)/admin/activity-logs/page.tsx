@@ -21,6 +21,22 @@ import type { ActivityLogItem } from "@/features/activity-log/types";
 const PAGE_SIZE = 20;
 
 const ACTION_LABEL: Record<string, string> = {
+  AUTHENTICATION_SUCCEEDED: "Đăng nhập thành công",
+  AUTHENTICATION_FAILED: "Đăng nhập thất bại",
+  STAFF_LOGGED_OUT_ALL: "Đăng xuất mọi thiết bị",
+  STAFF_SESSION_REVOKED: "Thu hồi phiên đăng nhập",
+  STAFF_OTHER_SESSIONS_REVOKED: "Thu hồi các phiên khác",
+  STAFF_CREATED: "Tạo nhân viên",
+  STAFF_STATUS_CHANGED: "Đổi trạng thái nhân viên",
+  STAFF_PROFILE_UPDATED: "Cập nhật hồ sơ cá nhân",
+  STAFF_PASSWORD_CHANGED: "Đổi mật khẩu",
+  STAFF_DIRECTORY_READ: "Xem danh sách nhân viên",
+  RBAC_ROLE_CREATED: "Tạo vai trò",
+  RBAC_ROLE_UPDATED: "Cập nhật vai trò",
+  RBAC_ROLE_ASSIGNED: "Gán vai trò",
+  RBAC_ROLE_REVOKED: "Thu hồi vai trò",
+  PATIENT_RECORD_READ: "Xem hồ sơ bệnh nhân",
+  PATIENT_RECORDS_READ: "Xem danh sách bệnh nhân",
   ROOM_QUEUE_MOVE_TO_FRONT: "Đưa bệnh nhân lên đầu hàng đợi",
   ROOM_QUEUE_MOVE_AFTER: "Đổi vị trí hàng đợi",
   PATIENT_TYPE_UPDATED: "Đổi phân loại bệnh nhân",
@@ -40,7 +56,8 @@ export default function ActivityLogsPage() {
   const [draftEntity, setDraftEntity] = useState("");
   const [draftEntityId, setDraftEntityId] = useState("");
   const [draftUserId, setDraftUserId] = useState("");
-  const [filters, setFilters] = useState({ entity: "", entityId: "", userId: "" });
+  const [draftAction, setDraftAction] = useState("");
+  const [filters, setFilters] = useState({ entity: "", entityId: "", userId: "", action: "" });
   const [page, setPage] = useState(1);
   const [selectedLog, setSelectedLog] = useState<ActivityLogItem | null>(null);
 
@@ -48,11 +65,12 @@ export default function ActivityLogsPage() {
     entity: filters.entity || undefined,
     entityId: filters.entityId || undefined,
     userId: filters.userId || undefined,
+    action: filters.action || undefined,
     page,
     limit: PAGE_SIZE,
   });
   const totalPages = Math.max(1, Math.ceil((logs.data?.total ?? 0) / PAGE_SIZE));
-  const hasFilters = !!filters.entity || !!filters.entityId || !!filters.userId;
+  const hasFilters = !!filters.entity || !!filters.entityId || !!filters.userId || !!filters.action;
 
   const applyFilters = (event: FormEvent) => {
     event.preventDefault();
@@ -60,6 +78,7 @@ export default function ActivityLogsPage() {
       entity: draftEntity.trim(),
       entityId: draftEntityId.trim(),
       userId: draftUserId.trim(),
+      action: draftAction.trim(),
     });
     setPage(1);
   };
@@ -68,7 +87,8 @@ export default function ActivityLogsPage() {
     setDraftEntity("");
     setDraftEntityId("");
     setDraftUserId("");
-    setFilters({ entity: "", entityId: "", userId: "" });
+    setDraftAction("");
+    setFilters({ entity: "", entityId: "", userId: "", action: "" });
     setPage(1);
   };
 
@@ -97,7 +117,8 @@ export default function ActivityLogsPage() {
 
       <Card className="overflow-hidden">
         <form onSubmit={applyFilters} className="border-b border-slate-200 p-4">
-          <div className="grid gap-3 lg:grid-cols-3">
+          <div className="grid gap-3 lg:grid-cols-4">
+            <Input value={draftAction} onChange={(event) => setDraftAction(event.target.value)} placeholder="Action, VD: RBAC_ROLE_ASSIGNED" aria-label="Lọc theo action" />
             <Input
               value={draftEntity}
               onChange={(event) => setDraftEntity(event.target.value)}

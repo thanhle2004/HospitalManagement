@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { AssignRoleDto, CreateRoleDto, RbacPaginationDto, StaffQueryDto, UpdateRoleDto } from './dto/rbac.dto';
 import { RbacRepository } from './rbac.repository';
+import { AuditAction } from '../activity-log/audit-action.catalog';
 
 export interface RbacAuditContext {
   requestId?: string;
@@ -75,13 +76,13 @@ export class RbacService {
     return { items: roles.map((role) => this.mapRole(role)), total, page: query.page, limit: query.limit };
   }
 
-  async listStaff(query: StaffQueryDto) {
+  async listStaff(actorId: string, actorRole: UserRole, query: StaffQueryDto, context: RbacAuditContext = {}) {
     const skip = (query.page - 1) * query.limit;
     const [items, total] = await Promise.all([
       this.repository.listStaff(skip, query.limit, query.search, query.status),
       this.repository.countStaff(query.search, query.status),
     ]);
-    return {
+    const result = {
       items: items.map((user) => ({
         id: user.id,
         email: user.email,
@@ -97,6 +98,20 @@ export class RbacService {
       page: query.page,
       limit: query.limit,
     };
+    const access = await this.getEffectiveAccess(actorId, actorRole);
+    await this.activityLog.logSensitiveRead({
+      userId: actorId,
+      action: AuditAction.STAFF_DIRECTORY_READ,
+      entity: 'User',
+      entityId: '*',
+      effectiveRoles: access.effectiveRoles,
+      requestId: context.requestId,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      resultCount: total,
+      filterFields: Object.keys(query),
+    });
+    return result;
   }
 
   async createRole(actorId: string, dto: CreateRoleDto, context: RbacAuditContext = {}) {
@@ -105,7 +120,7 @@ export class RbacService {
     const roleId = await this.prisma.transaction(async (tx) => {
       const role = await this.repository.createRole({ code: dto.code, name: dto.name, description: dto.description }, tx);
       await this.repository.replacePermissions(role.id, permissions.map((item) => item.id), tx);
-      await this.activityLog.log({ userId: actorId, action: 'RBAC_ROLE_CREATED', entity: 'Role', entityId: String(role.id), metadata: { requestId: context.requestId, code: role.code, permissionCodes: dto.permissionCodes }, ipAddress: context.ipAddress, userAgent: context.userAgent }, tx);
+      await this.activityLog.log({ userId: actorId, action: AuditAction.RBAC_ROLE_CREATED, entity: 'Role', entityId: String(role.id), metadata: { requestId: context.requestId, code: role.code, permissionCodes: dto.permissionCodes }, ipAddress: context.ipAddress, userAgent: context.userAgent }, tx);
       return role.id;
     });
     return this.mapRole((await this.repository.findRoleById(roleId))!);
@@ -118,7 +133,7 @@ export class RbacService {
     await this.prisma.transaction(async (tx) => {
       await this.repository.updateRole(id, { name: dto.name, description: dto.description }, tx);
       if (permissions) await this.repository.replacePermissions(id, permissions.map((item) => item.id), tx);
-      await this.activityLog.log({ userId: actorId, action: 'RBAC_ROLE_UPDATED', entity: 'Role', entityId: String(id), metadata: { requestId: context.requestId, reason: dto.reason, before: this.mapRole(current), permissionCodes: dto.permissionCodes }, ipAddress: context.ipAddress, userAgent: context.userAgent }, tx);
+      await this.activityLog.log({ userId: actorId, action: AuditAction.RBAC_ROLE_UPDATED, entity: 'Role', entityId: String(id), metadata: { requestId: context.requestId, reason: dto.reason, previousName: current.name, permissionCodes: dto.permissionCodes ?? [] }, ipAddress: context.ipAddress, userAgent: context.userAgent }, tx);
     });
     return this.mapRole((await this.repository.findRoleById(id))!);
   }
@@ -140,7 +155,7 @@ export class RbacService {
     if (!role) throw new NotFoundException(`Role ${dto.roleCode} không tồn tại`);
     await this.prisma.transaction(async (tx) => {
       await this.repository.assignRole(userId, role.id, actorId, tx);
-      await this.activityLog.log({ userId: actorId, action: 'RBAC_ROLE_ASSIGNED', entity: 'User', entityId: userId, metadata: { requestId: context.requestId, roleCode: role.code, reason: dto.reason }, ipAddress: context.ipAddress, userAgent: context.userAgent }, tx);
+      await this.activityLog.log({ userId: actorId, action: AuditAction.RBAC_ROLE_ASSIGNED, entity: 'User', entityId: userId, metadata: { requestId: context.requestId, roleCode: role.code, reason: dto.reason }, ipAddress: context.ipAddress, userAgent: context.userAgent }, tx);
     });
   }
 
@@ -155,7 +170,7 @@ export class RbacService {
     await this.prisma.transaction(async (tx) => {
       const deleted = await this.repository.revokeRole(userId, role.id, tx);
       if (!deleted.count) throw new NotFoundException('Nhân viên không có vai trò này');
-      await this.activityLog.log({ userId: actorId, action: 'RBAC_ROLE_REVOKED', entity: 'User', entityId: userId, metadata: { requestId: context.requestId, roleCode: role.code, reason }, ipAddress: context.ipAddress, userAgent: context.userAgent }, tx);
+      await this.activityLog.log({ userId: actorId, action: AuditAction.RBAC_ROLE_REVOKED, entity: 'User', entityId: userId, metadata: { requestId: context.requestId, roleCode: role.code, reason }, ipAddress: context.ipAddress, userAgent: context.userAgent }, tx);
     });
   }
 

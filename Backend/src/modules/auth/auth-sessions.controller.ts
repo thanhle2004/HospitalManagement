@@ -116,8 +116,10 @@ export class AuthSessionsController {
 
   private context(request: RequestWithContext) {
     return {
+      requestId: getRequestId(request),
       ipAddress: getClientAddress(request),
       deviceInfo: request.headers['user-agent'],
+      userAgent: request.headers['user-agent'],
     };
   }
 

@@ -7,6 +7,10 @@ import { PaginatedPatientResponseDto } from './dto/paginated-patient-response.dt
 import { UpdatePatientTypeDto } from './dto/update-patient-type.dto';
 import { PatientTypesRepository } from '../patient-types/patient-types.repository';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { AuditAction } from '../activity-log/audit-action.catalog';
+import { PrismaService } from '../../prisma/prisma.service';
+
+export interface PatientAuditContext { requestId?: string; ipAddress?: string; userAgent?: string }
 
 @Injectable()
 export class PatientsService {
@@ -14,6 +18,7 @@ export class PatientsService {
     private readonly patientsRepository: PatientsRepository,
     private readonly patientTypesRepository: PatientTypesRepository,
     private readonly activityLogService: ActivityLogService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async findById(id: string): Promise<PatientResponseDto> {
@@ -49,6 +54,7 @@ export class PatientsService {
     id: string,
     dto: UpdatePatientTypeDto,
     adminUserId: string,
+    context: PatientAuditContext = {},
   ): Promise<PatientResponseDto> {
     const patient = await this.patientsRepository.findById(id);
     if (!patient) {
@@ -68,21 +74,19 @@ export class PatientsService {
       return PatientsMapper.toResponseDto(patient);
     }
 
-    const updated = await this.patientsRepository.updatePatientType(
-      id,
-      dto.patientTypeId,
-    );
-    await this.activityLogService.log({
-      userId: adminUserId,
-      action: 'PATIENT_TYPE_UPDATED',
-      entity: 'Patient',
-      entityId: id,
-      metadata: {
-        previousPatientTypeId: patient.patientTypeId,
-        patientTypeId: dto.patientTypeId,
-      },
+    const updated = await this.prisma.transaction(async (tx) => {
+      const saved = await this.patientsRepository.updatePatientType(id, dto.patientTypeId, tx);
+      await this.activityLogService.log({
+        userId: adminUserId,
+        action: AuditAction.PATIENT_TYPE_UPDATED,
+        entity: 'Patient',
+        entityId: id,
+        metadata: { requestId: context.requestId, previousPatientTypeId: patient.patientTypeId, patientTypeId: dto.patientTypeId },
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+      }, tx);
+      return saved;
     });
-
     return PatientsMapper.toResponseDto(updated);
   }
 }

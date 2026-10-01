@@ -90,6 +90,9 @@ export default () => {
         true,
       ),
     },
+    audit: {
+      retentionDays: parseInt(process.env.AUDIT_RETENTION_DAYS || '2555', 10),
+    },
     routing: {
       qrExpiresInSeconds: parseInt(
         process.env.ROUTING_QR_EXPIRES_IN_SECONDS || '1800', // 30 phút

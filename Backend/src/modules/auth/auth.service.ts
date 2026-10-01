@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UsersRepository } from '../users/users.repository';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
@@ -17,11 +17,13 @@ import { TokenResponseDto } from './dto/token-response.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { hashToken } from './utils/hash-token.util';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { AuditAction } from '../activity-log/audit-action.catalog';
 
 export interface AuthAuditContext {
   requestId?: string;
   ipAddress?: string;
   userAgent?: string;
+  deviceInfo?: string;
 }
 
 @Injectable()
@@ -38,14 +40,16 @@ export class AuthService {
   async login(
     dto: LoginDto,
     concealAccountState = false,
-    context: { ipAddress?: string; deviceInfo?: string } = {},
+    context: AuthAuditContext = {},
   ): Promise<TokenResponseDto> {
     const user = await this.usersRepository.findByEmail(dto.email);
     if (!user) {
+      await this.logAuthenticationFailure(dto.email, 'INVALID_CREDENTIALS', context);
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
     if (user.status !== UserStatus.ACTIVE) {
+      await this.logAuthenticationFailure(dto.email, 'ACCOUNT_NOT_ACTIVE', context, user.id);
       if (concealAccountState) {
         throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
       }
@@ -59,18 +63,23 @@ export class AuthService {
       user.passwordHash,
     );
     if (!passwordMatches) {
+      await this.logAuthenticationFailure(dto.email, 'INVALID_CREDENTIALS', context, user.id);
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
-
-    await this.usersRepository.updateLastLogin(user.id);
-
-    return this.issueTokens(
-      user.id,
-      user.role,
-      user.tokenVersion,
-      undefined,
-      context,
-    );
+    return this.prisma.transaction(async (tx) => {
+      await this.usersRepository.updateLastLogin(user.id, tx);
+      const tokens = await this.issueTokens(user.id, user.role, user.tokenVersion, tx, context);
+      await this.activityLogService.log({
+        userId: user.id,
+        action: AuditAction.AUTHENTICATION_SUCCEEDED,
+        entity: 'User',
+        entityId: user.id,
+        metadata: { requestId: context.requestId, method: 'PASSWORD' },
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent ?? context.deviceInfo,
+      }, tx);
+      return tokens;
+    });
   }
 
   /**
@@ -80,7 +89,7 @@ export class AuthService {
    */
   async refresh(
     dto: RefreshTokenDto,
-    context: { ipAddress?: string; deviceInfo?: string } = {},
+    context: AuthAuditContext = {},
   ): Promise<TokenResponseDto> {
     let payload: JwtPayload;
     try {
@@ -132,7 +141,7 @@ export class AuthService {
       await this.activityLogService.log(
         {
           userId,
-          action: 'STAFF_LOGGED_OUT_ALL',
+          action: AuditAction.STAFF_LOGGED_OUT_ALL,
           entity: 'User',
           entityId: userId,
           metadata: { requestId: context.requestId },
@@ -167,7 +176,7 @@ export class AuthService {
       await this.activityLogService.log(
         {
           userId,
-          action: 'STAFF_SESSION_REVOKED',
+          action: AuditAction.STAFF_SESSION_REVOKED,
           entity: 'RefreshToken',
           entityId: sessionId,
           metadata: { requestId: context.requestId },
@@ -198,7 +207,7 @@ export class AuthService {
       await this.activityLogService.log(
         {
           userId,
-          action: 'STAFF_OTHER_SESSIONS_REVOKED',
+          action: AuditAction.STAFF_OTHER_SESSIONS_REVOKED,
           entity: 'User',
           entityId: userId,
           metadata: { requestId: context.requestId, affectedCount: result.count },
@@ -215,7 +224,7 @@ export class AuthService {
     role: UserRole,
     tokenVersion: number,
     db?: Prisma.TransactionClient,
-    context: { ipAddress?: string; deviceInfo?: string } = {},
+    context: AuthAuditContext = {},
   ): Promise<TokenResponseDto> {
     const sessionId = randomUUID();
     const payload: JwtPayload = {
@@ -258,6 +267,23 @@ export class AuthService {
     );
 
     return { accessToken, refreshToken };
+  }
+
+  private async logAuthenticationFailure(
+    identity: string,
+    reasonCode: string,
+    context: AuthAuditContext,
+    userId?: string,
+  ): Promise<void> {
+    await this.activityLogService.logBestEffort({
+      userId,
+      action: AuditAction.AUTHENTICATION_FAILED,
+      entity: 'AuthenticationAttempt',
+      entityId: createHash('sha256').update(identity.trim().toLowerCase()).digest('hex'),
+      metadata: { requestId: context.requestId, reasonCode, method: 'PASSWORD' },
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent ?? context.deviceInfo,
+    });
   }
 
   /** Parse chuỗi kiểu "15m" / "7d" / "1h" (cùng format với jsonwebtoken expiresIn) */

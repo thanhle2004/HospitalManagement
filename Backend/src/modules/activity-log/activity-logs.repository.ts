@@ -8,6 +8,8 @@ export interface ActivityLogFilter {
   entity?: string;
   entityId?: string;
   userId?: string;
+  action?: string;
+  createdAt?: { gte?: Date; lte?: Date };
 }
 
 @Injectable()
@@ -29,7 +31,7 @@ export class ActivityLogsRepository {
   ): Promise<ActivityLog[]> {
     return db.activityLog.findMany({
       where: filter,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip,
       take,
     });

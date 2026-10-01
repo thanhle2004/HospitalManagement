@@ -21,6 +21,9 @@ export interface ActivityLogFilters {
   entity?: string;
   entityId?: string;
   userId?: string;
+  action?: string;
+  from?: string;
+  to?: string;
   page: number;
   limit: number;
 }

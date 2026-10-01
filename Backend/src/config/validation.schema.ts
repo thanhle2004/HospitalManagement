@@ -95,4 +95,5 @@ export const validationSchema = Joi.object({
     .truthy('true')
     .falsy('false')
     .default(false),
+  AUDIT_RETENTION_DAYS: Joi.number().integer().min(365).default(2555),
 }).and('FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY');

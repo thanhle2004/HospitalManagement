@@ -23,7 +23,7 @@ export class RbacController {
   listRoles(@Query() query: RbacPaginationDto) { return this.service.listRoles(query); }
 
   @Get('staff')
-  listStaff(@Query() query: StaffQueryDto) { return this.service.listStaff(query); }
+  listStaff(@CurrentUser() actor: JwtPayload, @Query() query: StaffQueryDto, @Req() request: RequestWithContext) { return this.service.listStaff(actor.sub, actor.role, query, this.auditContext(request)); }
 
   @Post('roles')
   createRole(@CurrentUser() actor: JwtPayload, @Body() dto: CreateRoleDto, @Req() request: RequestWithContext) { return this.service.createRole(actor.sub, dto, this.auditContext(request)); }

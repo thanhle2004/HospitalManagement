@@ -8,6 +8,28 @@ import { UsersRepository } from '../users/users.repository';
 import { PrismaService } from '../../prisma/prisma.service';
 
 describe('AuthService characterization', () => {
+  it('audits an unknown login identity by fingerprint without credential material', async () => {
+    const activityLog = { logBestEffort: jest.fn() };
+    const service = new AuthService(
+      { findByEmail: jest.fn().mockResolvedValue(null) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      activityLog as never,
+    );
+
+    await expect(service.login({ email: 'unknown@example.test', password: 'Secret123!' }, true, { requestId: 'req-1' })).rejects.toThrow('Email hoặc mật khẩu không đúng');
+    expect(activityLog.logBestEffort).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'AUTHENTICATION_FAILED',
+      entity: 'AuthenticationAttempt',
+      entityId: expect.stringMatching(/^[a-f0-9]{64}$/),
+      metadata: { requestId: 'req-1', reasonCode: 'INVALID_CREDENTIALS', method: 'PASSWORD' },
+    }));
+    expect(JSON.stringify(activityLog.logBestEffort.mock.calls)).not.toContain('unknown@example.test');
+    expect(JSON.stringify(activityLog.logBestEffort.mock.calls)).not.toContain('Secret123!');
+  });
+
   it('preserves the staff login and refresh-token persistence path', async () => {
     const passwordHash = await bcrypt.hash('correct-password', 4);
     const usersRepository = {
@@ -39,16 +61,18 @@ describe('AuthService characterization', () => {
     const configService = {
       get: jest.fn((key: string) => configuration.get(key)),
     };
+    const tx = { marker: 'transaction' };
     const prisma = {
-      transaction: jest.fn(),
+      transaction: jest.fn((callback) => callback(tx)),
     };
+    const activityLog = { log: jest.fn() };
     const service = new AuthService(
       usersRepository as unknown as UsersRepository,
       refreshTokenRepository as unknown as RefreshTokenRepository,
       jwtService as unknown as JwtService,
       configService as unknown as ConfigService,
       prisma as unknown as PrismaService,
-      { log: jest.fn() } as never,
+      activityLog as never,
     );
 
     const result = await service.login({
@@ -60,7 +84,7 @@ describe('AuthService characterization', () => {
       accessToken: 'access-token-value',
       refreshToken: 'refresh-token-value',
     });
-    expect(usersRepository.updateLastLogin).toHaveBeenCalledWith('user-1');
+    expect(usersRepository.updateLastLogin).toHaveBeenCalledWith('user-1', tx);
     expect(jwtService.signAsync).toHaveBeenCalledWith(
       {
         sub: 'user-1',
@@ -78,8 +102,9 @@ describe('AuthService characterization', () => {
         expiresAt: expect.any(Date),
         lastUsedAt: expect.any(Date),
       }),
-      undefined,
+      tx,
     );
+    expect(activityLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'AUTHENTICATION_SUCCEEDED', metadata: { method: 'PASSWORD' } }), tx);
   });
 
   it('consumes a refresh token atomically before issuing its replacement', async () => {

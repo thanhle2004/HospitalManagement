@@ -16,6 +16,7 @@ Phạm vi: `Backend/` và `Frontend/` trong workspace hiện tại. Giai đoạn
 | [slice-1e-staff-sessions.md](slice-1e-staff-sessions.md) | Định danh phiên Staff, lưu client context, liệt kê và thu hồi phiên theo thiết bị |
 | [slice-1f-a-identity-rbac-convergence.md](slice-1f-a-identity-rbac-convergence.md) | Effective role/permission contract và workspace navigation an toàn, giữ compatibility `users.role` |
 | [slice-1f-b-staff-self-service.md](slice-1f-b-staff-self-service.md) | Staff self-profile/password/session UI, atomic credential revocation và audit redact |
+| [slice-1g-audit-policy-platform.md](slice-1g-audit-policy-platform.md) | Audit action/metadata policy, auth events, sensitive reads, query và retention contract |
 | [legacy-system-audit.md](legacy-system-audit.md) | Stack, cấu trúc, entry point, auth, triển khai, tích hợp, technical debt và kết luận khảo sát |
 | [business-modules.md](business-modules.md) | Inventory module, vai trò, luồng, validation, trạng thái, API, bảng, quyền và trường hợp đặc biệt |
 | [database-inventory.md](database-inventory.md) | Inventory 24 bảng MySQL, khóa/index, dữ liệu nhạy cảm, truy vấn và rủi ro dữ liệu |

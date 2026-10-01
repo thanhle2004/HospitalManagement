@@ -9,6 +9,9 @@ function toQueryString(filters: ActivityLogFilters) {
   if (filters.entity) params.set("entity", filters.entity);
   if (filters.entityId) params.set("entityId", filters.entityId);
   if (filters.userId) params.set("userId", filters.userId);
+  if (filters.action) params.set("action", filters.action);
+  if (filters.from) params.set("from", filters.from);
+  if (filters.to) params.set("to", filters.to);
   return params.toString();
 }
 

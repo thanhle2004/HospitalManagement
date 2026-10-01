@@ -15,7 +15,7 @@ describe('RbacService', () => {
     countStaff: jest.fn(),
     listUserRoles: jest.fn(),
   };
-  const activityLog = { log: jest.fn() };
+  const activityLog = { log: jest.fn(), logSensitiveRead: jest.fn() };
   const transaction = jest.fn(async (callback: (tx: object) => unknown) => callback({ tx: true }));
   const service = new RbacService(repository as never, { transaction } as never, activityLog as never);
 
@@ -42,10 +42,12 @@ describe('RbacService', () => {
   it('returns a paginated Staff projection without credential fields', async () => {
     repository.listStaff.mockResolvedValue([{ id: 'user-1', email: 'doctor@example.com', role: UserRole.DOCTOR, status: 'ACTIVE', lastLoginAt: null, createdAt: new Date('2026-01-01'), profile: { fullName: 'Bác sĩ A', phone: null }, roleAssignments: [{ role: { code: 'DOCTOR' } }] }]);
     repository.countStaff.mockResolvedValue(1);
-    const result = await service.listStaff({ page: 1, limit: 20 });
+    repository.listUserRoles.mockResolvedValue([{ role: { code: 'ADMIN', permissions: [] } }]);
+    const result = await service.listStaff('admin-1', UserRole.ADMIN, { page: 1, limit: 20 });
     expect(result.total).toBe(1);
     expect(result.items[0]).toEqual(expect.objectContaining({ id: 'user-1', roles: ['DOCTOR'] }));
     expect(result.items[0]).not.toHaveProperty('passwordHash');
+    expect(activityLog.logSensitiveRead).toHaveBeenCalledWith(expect.objectContaining({ action: 'STAFF_DIRECTORY_READ', effectiveRoles: ['ADMIN'], resultCount: 1 }));
   });
 
   it('keeps a narrow ADMIN compatibility fallback during backfill', async () => {

@@ -16,6 +16,7 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { CreateStaffDto, UpdateStaffStatusDto } from './dto/create-staff.dto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { RefreshTokenRepository } from '../auth/repositories/refresh-token.repository';
+import { AuditAction } from '../activity-log/audit-action.catalog';
 
 export interface StaffAuditContext {
   requestId?: string;
@@ -113,7 +114,7 @@ export class UsersService {
       await this.activityLogService.log(
         {
           userId: actorId,
-          action: 'STAFF_CREATED',
+          action: AuditAction.STAFF_CREATED,
           entity: 'User',
           entityId: created.id,
           metadata: { requestId: context.requestId, role: dto.role, reason: dto.reason },
@@ -142,7 +143,7 @@ export class UsersService {
       await this.activityLogService.log(
         {
           userId: actorId,
-          action: 'STAFF_STATUS_CHANGED',
+          action: AuditAction.STAFF_STATUS_CHANGED,
           entity: 'User',
           entityId: userId,
           metadata: { requestId: context.requestId, before: current.status, after: dto.status, reason: dto.reason },
@@ -189,7 +190,7 @@ export class UsersService {
       await this.activityLogService.log(
         {
           userId,
-          action: 'STAFF_PROFILE_UPDATED',
+          action: AuditAction.STAFF_PROFILE_UPDATED,
           entity: 'User',
           entityId: userId,
           metadata: { requestId: context.requestId, changedFields },
@@ -222,7 +223,7 @@ export class UsersService {
       await this.activityLogService.log(
         {
           userId,
-          action: 'STAFF_PASSWORD_CHANGED',
+          action: AuditAction.STAFF_PASSWORD_CHANGED,
           entity: 'User',
           entityId: userId,
           metadata: { requestId: context.requestId },

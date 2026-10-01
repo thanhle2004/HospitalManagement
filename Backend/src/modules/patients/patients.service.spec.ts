@@ -38,6 +38,7 @@ describe('PatientsService admin operations', () => {
       patientsRepository as unknown as PatientsRepository,
       {} as PatientTypesRepository,
       {} as ActivityLogService,
+      {} as never,
     );
 
     const result = await service.findAllForAdmin({
@@ -74,10 +75,13 @@ describe('PatientsService admin operations', () => {
       findById: jest.fn().mockResolvedValue(updated.patientType),
     };
     const activityLogService = { log: jest.fn().mockResolvedValue(undefined) };
+    const tx = { marker: 'tx' };
+    const prisma = { transaction: jest.fn((callback) => callback(tx)) };
     const service = new PatientsService(
       patientsRepository as unknown as PatientsRepository,
       patientTypesRepository as unknown as PatientTypesRepository,
       activityLogService as unknown as ActivityLogService,
+      prisma as never,
     );
 
     const result = await service.updatePatientType(
@@ -92,8 +96,11 @@ describe('PatientsService admin operations', () => {
       action: 'PATIENT_TYPE_UPDATED',
       entity: 'Patient',
       entityId: 'patient-1',
-      metadata: { previousPatientTypeId: 1, patientTypeId: 2 },
-    });
+      metadata: { requestId: undefined, previousPatientTypeId: 1, patientTypeId: 2 },
+      ipAddress: undefined,
+      userAgent: undefined,
+    }, tx);
+    expect(patientsRepository.updatePatientType).toHaveBeenCalledWith('patient-1', 2, tx);
   });
 
   it('rejects a deleted or unknown patient type', async () => {
@@ -106,6 +113,7 @@ describe('PatientsService admin operations', () => {
       patientsRepository as unknown as PatientsRepository,
       patientTypesRepository as unknown as PatientTypesRepository,
       { log: jest.fn() } as unknown as ActivityLogService,
+      {} as never,
     );
 
     await expect(

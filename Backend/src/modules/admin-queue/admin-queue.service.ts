@@ -4,6 +4,7 @@ import { AssignmentStatus } from "@prisma/client";
 import { RoomQueueEntriesRepository } from "../check-in/repositories/room-queue-entries.repository";
 import { ActivityLogService } from "../activity-log/activity-log.service";
 import { AdminQueueEntryDto } from "./dto/admin-queue-entry.dto";
+import { AuditAction, AuditActionCode } from "../activity-log/audit-action.catalog";
 import {
   ROOM_QUEUE_UPDATED_EVENT,
   RoomQueueUpdatedEvent,
@@ -68,7 +69,7 @@ export class AdminQueueService {
 
     await this.roomQueueEntriesRepository.updatePosition(queueEntryId, newPosition);
 
-    await this.logAndBroadcast(adminUserId, "ROOM_QUEUE_MOVE_TO_FRONT", entry.roomId, {
+    await this.logAndBroadcast(adminUserId, AuditAction.ROOM_QUEUE_MOVE_TO_FRONT, entry.roomId, {
       queueEntryId,
       oldPosition,
       newPosition,
@@ -114,7 +115,7 @@ export class AdminQueueService {
 
     await this.roomQueueEntriesRepository.updatePosition(queueEntryId, newPosition);
 
-    await this.logAndBroadcast(adminUserId, "ROOM_QUEUE_MOVE_AFTER", entry.roomId, {
+    await this.logAndBroadcast(adminUserId, AuditAction.ROOM_QUEUE_MOVE_AFTER, entry.roomId, {
       queueEntryId,
       oldPosition,
       newPosition,
@@ -140,7 +141,7 @@ export class AdminQueueService {
 
   private async logAndBroadcast(
     adminUserId: string,
-    action: string,
+    action: AuditActionCode,
     roomId: number,
     metadata: Record<string, unknown>,
   ): Promise<void> {
