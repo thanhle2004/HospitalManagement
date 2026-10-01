@@ -11,6 +11,14 @@ export interface RbacAuditContext {
   userAgent?: string;
 }
 
+export type StaffWorkspace = 'ADMIN' | 'DOCTOR';
+
+export interface EffectiveAccess {
+  effectiveRoles: string[];
+  effectivePermissions: string[];
+  workspace: StaffWorkspace | null;
+}
+
 @Injectable()
 export class RbacService {
   constructor(
@@ -24,6 +32,29 @@ export class RbacService {
     // Compatibility safety net until every existing user has been backfilled.
     if (legacyRole === UserRole.ADMIN && required.every((code) => code === 'rbac.manage')) return true;
     return required.every((code) => codes.has(code));
+  }
+
+  async getEffectiveAccess(
+    userId: string,
+    legacyRole: UserRole,
+  ): Promise<EffectiveAccess> {
+    const assignments = await this.repository.listUserRoles(userId);
+    const effectiveRoles = assignments
+      .map((assignment) => assignment.role.code)
+      .sort();
+    const effectivePermissions = [
+      ...new Set(
+        assignments.flatMap((assignment) =>
+          assignment.role.permissions.map((link) => link.permission.code),
+        ),
+      ),
+    ].sort();
+
+    return {
+      effectiveRoles,
+      effectivePermissions,
+      workspace: this.selectWorkspace(effectiveRoles, legacyRole),
+    };
   }
 
   async listPermissions(query: RbacPaginationDto) {
@@ -141,6 +172,21 @@ export class RbacService {
       throw new BadRequestException(`Permission không tồn tại: ${unique.filter((code) => !found.has(code)).join(', ')}`);
     }
     return permissions;
+  }
+
+  private selectWorkspace(
+    effectiveRoles: string[],
+    legacyRole: UserRole,
+  ): StaffWorkspace | null {
+    if (
+      (legacyRole === UserRole.ADMIN || legacyRole === UserRole.DOCTOR) &&
+      (effectiveRoles.includes(legacyRole) || effectiveRoles.length === 0)
+    ) {
+      return legacyRole;
+    }
+    if (effectiveRoles.includes(UserRole.ADMIN)) return 'ADMIN';
+    if (effectiveRoles.includes(UserRole.DOCTOR)) return 'DOCTOR';
+    return null;
   }
 
   private mapRole(role: NonNullable<Awaited<ReturnType<RbacRepository['findRoleById']>>>) {

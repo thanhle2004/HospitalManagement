@@ -8,10 +8,12 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 import { UsersModule } from '../users/users.module';
 import { AuthSessionsController } from './auth-sessions.controller';
+import { RbacModule } from '../rbac/rbac.module';
 
 @Module({
   imports: [
     UsersModule, // để dùng UsersRepository (đã export ở UsersModule)
+    RbacModule,
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],

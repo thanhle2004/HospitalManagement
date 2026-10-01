@@ -1,26 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { STAFF_ACCESS_COOKIE, STAFF_REFRESH_COOKIE } from "@/features/auth/cookies";
-import type { StaffRole } from "@/features/auth/types";
 import {
   PATIENT_ACCESS_COOKIE,
   PATIENT_REFRESH_COOKIE,
 } from "@/features/patient-auth/cookies";
-
-function decodeRole(token: string | undefined): StaffRole | null {
-  if (!token) return null;
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return null;
-    const decoded = JSON.parse(
-      Buffer.from(payload, "base64url").toString("utf8"),
-    ) as { role?: StaffRole };
-    return decoded.role === "ADMIN" || decoded.role === "DOCTOR"
-      ? decoded.role
-      : null;
-  } catch {
-    return null;
-  }
-}
 
 export function proxy(request: NextRequest): NextResponse {
   if (request.nextUrl.pathname.startsWith("/patient")) {
@@ -44,17 +27,14 @@ export function proxy(request: NextRequest): NextResponse {
     return NextResponse.redirect(loginUrl);
   }
 
-  const role = decodeRole(accessToken);
-  if (role === "ADMIN" && request.nextUrl.pathname.startsWith("/doctor")) {
-    return NextResponse.redirect(new URL("/admin", request.url));
-  }
-  if (role === "DOCTOR" && request.nextUrl.pathname.startsWith("/admin")) {
-    return NextResponse.redirect(new URL("/doctor", request.url));
-  }
-
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/doctor/:path*", "/patient/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/doctor/:path*",
+    "/workspace-unavailable",
+    "/patient/:path*",
+  ],
 };

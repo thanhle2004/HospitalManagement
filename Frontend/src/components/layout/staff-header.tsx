@@ -84,12 +84,12 @@ export function StaffHeader({ showSearch = true }: { showSearch?: boolean }) {
                   {user?.profile?.fullName ?? user?.email}
                 </p>
                 <p className="text-xs leading-none text-slate-500">
-                  {user?.role === "ADMIN" ? "Admin" : "Doctor"} — {user?.email}
+                  {user?.effectiveRoles.join(", ")} — {user?.email}
                 </p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer" render={<Link href={user?.role === "ADMIN" ? "/admin/profile" : "/doctor/profile"} />}>
+            <DropdownMenuItem className="cursor-pointer" render={<Link href={user?.workspace === "ADMIN" ? "/admin/profile" : "/doctor/profile"} />}>
               <CircleUserRound className="mr-2 h-4 w-4" />
               <span>Hồ sơ cá nhân</span>
             </DropdownMenuItem>

@@ -1,11 +1,11 @@
 import { create } from "zustand";
-import type { StaffUser } from "./types";
+import type { StaffSessionUser } from "./types";
 
 interface AuthState {
-  user: StaffUser | null;
+  user: StaffSessionUser | null;
   /** true sau khi đã kiểm tra cookie HttpOnly với backend ít nhất một lần. */
   isInitialized: boolean;
-  setUser: (user: StaffUser) => void;
+  setUser: (user: StaffSessionUser) => void;
   clearAuth: () => void;
 }
 

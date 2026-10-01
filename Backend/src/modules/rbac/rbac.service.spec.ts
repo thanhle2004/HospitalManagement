@@ -13,6 +13,7 @@ describe('RbacService', () => {
     countRoleAssignments: jest.fn(),
     listStaff: jest.fn(),
     countStaff: jest.fn(),
+    listUserRoles: jest.fn(),
   };
   const activityLog = { log: jest.fn() };
   const transaction = jest.fn(async (callback: (tx: object) => unknown) => callback({ tx: true }));
@@ -51,6 +52,92 @@ describe('RbacService', () => {
     repository.findPermissionCodesForUser.mockResolvedValue([]);
     await expect(service.userHasEveryPermission('user-1', ['rbac.manage'], UserRole.ADMIN)).resolves.toBe(true);
     await expect(service.userHasEveryPermission('user-1', ['clinical.sign'], UserRole.ADMIN)).resolves.toBe(false);
+  });
+
+  it('keeps effective roles, permissions and workspace as separate concepts', async () => {
+    repository.listUserRoles = jest.fn().mockResolvedValue([
+      {
+        role: {
+          code: 'DOCTOR',
+          permissions: [
+            { permission: { code: 'doctor.workflow' } },
+            { permission: { code: 'visits.read' } },
+          ],
+        },
+      },
+      {
+        role: {
+          code: 'CUSTOM_AUDITOR',
+          permissions: [{ permission: { code: 'audit.read' } }],
+        },
+      },
+    ]);
+
+    await expect(
+      service.getEffectiveAccess('user-1', UserRole.DOCTOR),
+    ).resolves.toEqual({
+      effectiveRoles: ['CUSTOM_AUDITOR', 'DOCTOR'],
+      effectivePermissions: ['audit.read', 'doctor.workflow', 'visits.read'],
+      workspace: 'DOCTOR',
+    });
+  });
+
+  it('returns no workspace for a role without a completed business workspace', async () => {
+    repository.listUserRoles = jest.fn().mockResolvedValue([
+      { role: { code: 'NURSE', permissions: [] } },
+    ]);
+
+    await expect(
+      service.getEffectiveAccess('user-1', UserRole.NURSE),
+    ).resolves.toEqual({
+      effectiveRoles: ['NURSE'],
+      effectivePermissions: [],
+      workspace: null,
+    });
+  });
+
+  it('preserves the legacy ADMIN workspace during an incomplete backfill', async () => {
+    repository.listUserRoles.mockResolvedValue([]);
+
+    await expect(
+      service.getEffectiveAccess('legacy-admin', UserRole.ADMIN),
+    ).resolves.toEqual({
+      effectiveRoles: [],
+      effectivePermissions: [],
+      workspace: 'ADMIN',
+    });
+  });
+
+  it('denies permissions that are absent from effective assignments', async () => {
+    repository.findPermissionCodesForUser.mockResolvedValue([]);
+
+    await expect(
+      service.userHasEveryPermission(
+        'doctor-1',
+        ['staff.manage'],
+        UserRole.DOCTOR,
+      ),
+    ).resolves.toBe(false);
+  });
+
+  it('uses an assigned supported workspace without treating legacy role as permission', async () => {
+    repository.listUserRoles = jest.fn().mockResolvedValue([
+      {
+        role: {
+          code: 'ADMIN',
+          permissions: [{ permission: { code: 'rbac.manage' } }],
+        },
+      },
+      { role: { code: 'NURSE', permissions: [] } },
+    ]);
+
+    await expect(
+      service.getEffectiveAccess('user-1', UserRole.NURSE),
+    ).resolves.toEqual({
+      effectiveRoles: ['ADMIN', 'NURSE'],
+      effectivePermissions: ['rbac.manage'],
+      workspace: 'ADMIN',
+    });
   });
 
   it('assigns a role and audit event in the same transaction', async () => {

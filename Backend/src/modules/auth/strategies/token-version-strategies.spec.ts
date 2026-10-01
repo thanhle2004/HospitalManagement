@@ -35,6 +35,52 @@ describe('token-version JWT strategies', () => {
     ).rejects.toThrow('Phiên đăng nhập không còn hiệu lực');
   });
 
+  it('rejects a locked Staff account even when token version matches', async () => {
+    const users = {
+      findById: jest.fn().mockResolvedValue({
+        id: 'user-1',
+        role: UserRole.ADMIN,
+        status: UserStatus.LOCKED,
+        tokenVersion: 1,
+      }),
+    };
+    const strategy = new JwtStrategy(
+      config,
+      users as unknown as UsersRepository,
+    );
+
+    await expect(
+      strategy.validate({
+        sub: 'user-1',
+        role: UserRole.ADMIN,
+        tokenVersion: 1,
+      }),
+    ).rejects.toThrow('Phiên đăng nhập không còn hiệu lực');
+  });
+
+  it('accepts a legacy Staff token without a version only for version zero', async () => {
+    const users = {
+      findById: jest.fn().mockResolvedValue({
+        id: 'legacy-user',
+        role: UserRole.DOCTOR,
+        status: UserStatus.ACTIVE,
+        tokenVersion: 0,
+      }),
+    };
+    const strategy = new JwtStrategy(
+      config,
+      users as unknown as UsersRepository,
+    );
+
+    await expect(
+      strategy.validate({ sub: 'legacy-user', role: UserRole.DOCTOR }),
+    ).resolves.toEqual({
+      sub: 'legacy-user',
+      role: UserRole.DOCTOR,
+      tokenVersion: 0,
+    });
+  });
+
   it('rejects a stale Patient access token', async () => {
     const patients = {
       findById: jest.fn().mockResolvedValue({

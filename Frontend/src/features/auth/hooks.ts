@@ -6,10 +6,7 @@ import { useRouter } from "next/navigation";
 import { authApi } from "./api";
 import { useAuthStore } from "./store";
 import type { LoginRequest } from "./types";
-
-function dashboardPathFor(role: "ADMIN" | "DOCTOR") {
-  return role === "ADMIN" ? "/admin" : "/doctor";
-}
+import { workspacePathFor } from "./workspace";
 
 export function useLogin() {
   const router = useRouter();
@@ -18,7 +15,7 @@ export function useLogin() {
     mutationFn: (payload: LoginRequest) => authApi.login(payload),
     onSuccess: (user) => {
       useAuthStore.getState().setUser(user);
-      router.replace(dashboardPathFor(user.role));
+      router.replace(workspacePathFor(user.workspace));
     },
   });
 }

@@ -1,14 +1,14 @@
 import { envelopeFetch } from "@/lib/api-client";
-import type { LoginRequest, StaffUser } from "./types";
+import type { LoginRequest, StaffSessionUser } from "./types";
 
 export const authApi = {
   login: (payload: LoginRequest) =>
-    envelopeFetch<StaffUser>("/api/session", {
+    envelopeFetch<StaffSessionUser>("/api/session", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
 
   logout: () => envelopeFetch<void>("/api/session", { method: "DELETE" }),
 
-  getSession: () => envelopeFetch<StaffUser>("/api/session"),
+  getSession: () => envelopeFetch<StaffSessionUser>("/api/session"),
 };

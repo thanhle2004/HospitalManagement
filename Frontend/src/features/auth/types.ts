@@ -1,4 +1,12 @@
-export type StaffRole = "ADMIN" | "DOCTOR";
+export type StaffRole =
+  | "ADMIN"
+  | "DOCTOR"
+  | "NURSE"
+  | "RECEPTIONIST"
+  | "LAB_TECHNICIAN"
+  | "PHARMACIST"
+  | "CASHIER";
+export type StaffWorkspace = "ADMIN" | "DOCTOR";
 export type StaffStatus = "ACTIVE" | "INACTIVE" | "LOCKED";
 export type Gender = "MALE" | "FEMALE" | "OTHER";
 
@@ -20,6 +28,12 @@ export interface StaffUser {
   lastLoginAt: string | null;
   createdAt: string;
   profile: StaffProfile | null;
+}
+
+export interface StaffSessionUser extends StaffUser {
+  effectiveRoles: string[];
+  effectivePermissions: string[];
+  workspace: StaffWorkspace | null;
 }
 
 export interface LoginRequest {

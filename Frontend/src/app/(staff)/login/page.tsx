@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { useLogin, useSessionBootstrap } from "@/features/auth/hooks";
+import { workspacePathFor } from "@/features/auth/workspace";
 import { useAuthStore } from "@/features/auth/store";
 import { ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,7 @@ export default function LoginPage() {
   // Cookie HttpOnly còn phiên hợp lệ -> vào thẳng dashboard.
   useEffect(() => {
     if (isInitialized && user) {
-      router.replace(user.role === "ADMIN" ? "/admin" : "/doctor");
+      router.replace(workspacePathFor(user.workspace));
     }
   }, [isInitialized, user, router]);
 
@@ -46,7 +47,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-lg">Đăng nhập hệ thống</CardTitle>
-          <p className="text-sm text-slate-500">HospitalManagement — dành cho Admin &amp; Doctor</p>
+          <p className="text-sm text-slate-500">HospitalManagement — cổng đăng nhập nhân viên</p>
         </CardHeader>
         <CardContent>
           <form

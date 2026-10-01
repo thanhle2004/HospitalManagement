@@ -1,7 +1,7 @@
 # Hospital Management — Project North Star
 
 Ngày checkpoint: **2026-10-01**  
-Baseline đánh giá: **commit `0ee1c4a` (hoàn tất Slice 1E)**  
+Baseline đánh giá: **hoàn tất Slice 1F-A trên nền commit `08779ba`**
 Trạng thái: **tài liệu canonical cấp dự án; phải đọc trước mọi slice mới**
 
 ## 1. System objective
@@ -163,13 +163,13 @@ Do đó: role không đồng nghĩa permission; permission không tự quyết �
 
 `users.role` tiếp tục chỉ là compatibility layer cho JWT, proxy và consumer legacy cho đến khi từng consumer được inventory, migrate và kiểm chứng an toàn. Nó không phải nguồn multi-role đích và không được âm thầm mở rộng thành “primary authorization role”. Việc contract hoặc thay đổi field này cần compatibility window, test lockout/privilege drift và rollback rõ ràng.
 
-## 9. Capability status tại Slice 1E
+## 9. Capability status tại Slice 1F-A
 
 | Domain | Status | Bằng chứng/gap chính |
 |---|---|---|
 | Authentication | PARTIAL | Staff/Patient/Device auth, rotation, rate limit và token-version có; MFA, shared rate-limit store, full Patient v1 cutover chưa có |
-| Authorization / RBAC | PARTIAL | Role/Permission/multi-assignment và permission guard có; resource/facility/care scope chưa có; legacy `users.role` còn tồn tại |
-| Staff management | PARTIAL | Create/status/assign/revoke role có; edit profile/password UI và role-history view chưa hoàn chỉnh |
+| Authorization / RBAC | PARTIAL | Effective role/permission contract và permission guard có; workspace đã tách khỏi authorization; resource/facility/care scope chưa có; legacy `users.role` còn compatibility |
+| Staff management | PARTIAL | Create/status/assign/revoke role và safe workspace landing có; edit profile/password UI và role-history view chưa hoàn chỉnh |
 | Patient management | PARTIAL | OTP-created profile, Admin list/search/type update và Patient own profile có; merge/canonical identity/consent chưa có |
 | Doctor management | PARTIAL | Account và shift/room assignment có; clinical worklist/workspace UI chưa hoàn chỉnh |
 | Appointment / reception | NOT IMPLEMENTED | Patient hiện tạo Visit trực tiếp |
@@ -212,7 +212,7 @@ Approved thesis scope chỉ được xem là **feature-complete** khi đồng th
 - Không còn unresolved critical/high security hoặc data-integrity defect trong approved scope.
 - Lint, type-check, production build và các regression suite liên quan đều xanh tại release candidate.
 
-## 10. Phase 0 → Slice 1E review
+## 10. Phase 0 → Slice 1F-A review
 
 | Milestone | Capability/dependency đã giải quyết | Debt/compatibility còn lại |
 |---|---|---|
@@ -223,6 +223,7 @@ Approved thesis scope chỉ được xem là **feature-complete** khi đồng th
 | Slice 1C | Permission catalog và enforcement trên Staff business controllers | `RolesGuard` vẫn global; legacy role decorator/code còn tồn tại; resource-level scope chưa có |
 | Slice 1D | Role nghiệp vụ mới, Staff create/status, initial assignment và audit transaction | Role mới mặc định deny và chưa có workspace; `users.role` vẫn bắt buộc/JWT claim |
 | Slice 1E | Session `sid`, context, list/revoke UI/API | Session revoke chưa audit; `lastUsedAt` chỉ ghi lúc tạo/rotate; user-agent thô; profile page chưa edit profile/password |
+| Slice 1F-A | Effective roles/permissions/session contract, workspace navigation độc lập và safe landing cho role chưa có workspace | `users.role`/JWT role/ADMIN fallback còn compatibility; chỉ ADMIN/DOCTOR có workspace; contract generation để 1H |
 
 Không có TODO database migration đang failed tại local; 11 migration đã được áp dụng. Production migration sign-off vẫn mở.
 
@@ -252,12 +253,14 @@ Không có TODO database migration đang failed tại local; 11 migration đã �
 
 ### Foundation closure
 
-1. **1F — Identity/RBAC convergence and self-service closure**: quyết định/cắt rõ compatibility `users.role`, effective-role contract, frontend landing cho role mới hoặc chặn activation, profile/password, session/audit coverage và authorization matrix.
-2. **1G — Audit policy platform**: action catalog, metadata schema/redaction, sensitive-read hook, actor effective roles và retention/query contract.
-3. **1H — Contract and E2E harness**: OpenAPI contract check/generated types PoC, Staff role×endpoint matrix, browser/API happy-path regression.
+1. **1F-A — Identity/RBAC convergence (complete)**: effective-role/permission contract, workspace navigation tách biệt, safe landing và compatibility matrix.
+2. **1F-B — Staff self-service closure (next, not started)**: profile/password, atomic session revoke, audit và UI/test.
+3. **1G — Audit policy platform**: action catalog, metadata schema/redaction, sensitive-read hook, actor effective roles và retention/query contract.
+4. **1H — Contract and E2E harness**: OpenAPI contract check/generated types PoC, Staff role×endpoint matrix, browser/API happy-path regression.
 
 ```text
-Slice 1F
+Slice 1F-A (complete)
+  -> Slice 1F-B
   -> Slice 1G
   -> Slice 1H
   -> FOUNDATION CLOSED
@@ -268,22 +271,22 @@ Sau Slice 1H, không tự động thêm platform/foundation slice mới trước
 
 ### Core business workflow
 
-4. **2A — Appointment foundation**: schedule/slot/appointment state/history; chưa tạo Visit tự động.
-5. **2B — Reception and idempotent Appointment→Visit handoff**: public Visits application service, duplicate prevention; routing core giữ nguyên.
-6. **3A–3B — VitalSign backend + Nurse/Doctor UI**: append-only measurements tham chiếu Visit.
-7. **4A–4C — MedicalRecord draft/sign/amend/publication**.
-8. **5A–5C — Independent ClinicalOrder/result**; mọi tự động thêm routing step là slice riêng cần approval.
-9. **6A–6C — Medication/prescription/dispensation**.
-10. **7A–7C — Invoice/payment/refund**.
-11. **8A–8B — Completion policy, summary và follow-up**, bao quanh routing completion hiện hữu.
+5. **2A — Appointment foundation**: schedule/slot/appointment state/history; chưa tạo Visit tự động.
+6. **2B — Reception and idempotent Appointment→Visit handoff**: public Visits application service, duplicate prevention; routing core giữ nguyên.
+7. **3A–3B — VitalSign backend + Nurse/Doctor UI**: append-only measurements tham chiếu Visit.
+8. **4A–4C — MedicalRecord draft/sign/amend/publication**.
+9. **5A–5C — Independent ClinicalOrder/result**; mọi tự động thêm routing step là slice riêng cần approval.
+10. **6A–6C — Medication/prescription/dispensation**.
+11. **7A–7C — Invoice/payment/refund**.
+12. **8A–8B — Completion policy, summary và follow-up**, bao quanh routing completion hiện hữu.
 
 ### Supporting domains, integration, reporting, hardening
 
-12. Persistent notification/preferences/realtime adapters được triển khai ngay trước domain event đầu tiên cần user-facing delivery, không nhất thiết đứng trước appointment.
-13. Scoped dashboard/search/export sau khi các source domain ổn định.
-14. Patient portal mở rộng theo từng dữ liệu đã publication, không xây màn hình rỗng trước domain.
-15. Operational exceptions: một state proposal/slice, regression-first, approval nếu chạm routing.
-16. Production hardening: shared rate limit/socket/outbox khi topology nhiều replica được xác nhận; security/E2E/performance/cutover.
+13. Persistent notification/preferences/realtime adapters được triển khai ngay trước domain event đầu tiên cần user-facing delivery, không nhất thiết đứng trước appointment.
+14. Scoped dashboard/search/export sau khi các source domain ổn định.
+15. Patient portal mở rộng theo từng dữ liệu đã publication, không xây màn hình rỗng trước domain.
+16. Operational exceptions: một state proposal/slice, regression-first, approval nếu chạm routing.
+17. Production hardening: shared rate limit/socket/outbox khi topology nhiều replica được xác nhận; security/E2E/performance/cutover.
 
 ## 13. Mandatory pre-slice checklist
 
@@ -316,13 +319,13 @@ Sau khi hoàn thành:
 
 ## 14. Candidate slices đề nghị — chưa được phê duyệt triển khai
 
-### Candidate A — 1F Identity/RBAC convergence (khuyến nghị)
+### Candidate A — 1F-B Staff self-service closure (khuyến nghị tiếp theo)
 
-- Dependency: đóng compatibility và contract identity trước khi NURSE/RECEPTIONIST/LAB/PHARMACIST/CASHIER dùng hệ thống.
-- Business value: Staff mới có đường đăng nhập/landing an toàn; hồ sơ/password/session/audit khép kín.
-- Risk: lockout hoặc privilege drift nếu cắt `users.role` quá sớm.
-- Modules: auth, users, rbac, activity-log, BFF/proxy/AuthGuard/profile.
-- Acceptance: một authorization source rõ; compatibility plan có sunset; role mới không rơi vào route sai; password revoke atomic; audit/matrix test đầy đủ; không chạm routing.
+- Dependency: dùng effective-access contract đã chốt ở 1F-A; không đổi workspace/authorization semantics.
+- Business value: Staff cập nhật hồ sơ và đổi mật khẩu với session revoke/audit đầy đủ.
+- Risk: ownership RefreshToken bị duplicate hoặc audit chứa PII nếu tái sử dụng stash nguyên trạng.
+- Modules: users, auth session revocation port, activity-log và profile UI.
+- Acceptance: password revoke atomic, audit đã redact, unauthorized/rollback tests, UI state đầy đủ; không chạm routing.
 
 ### Candidate B — 1G Audit policy platform
 
@@ -340,4 +343,4 @@ Sau khi hoàn thành:
 - Modules: appointment mới, patient/service/doctor read ports, Patient/Reception UI.
 - Acceptance: book/confirm/reschedule/cancel/history, overlap/capacity/idempotency và authorization; không tạo/ghi routing table.
 
-**Quyết định đề nghị:** Candidate A trước. Không code cho đến khi owner duyệt phạm vi convergence, đặc biệt semantics/sunset của `users.role` và landing cho năm role nghiệp vụ mới.
+**Trạng thái:** 1F-A đã hoàn tất. Dừng trước 1F-B; không tự động triển khai khi chưa có lệnh tiếp theo.
