@@ -7,6 +7,7 @@ Phạm vi: `Backend/` và `Frontend/` trong workspace hiện tại. Giai đoạn
 
 | Tài liệu | Nội dung |
 |---|---|
+| [PROJECT_NORTH_STAR.md](PROJECT_NORTH_STAR.md) | Source of truth cấp dự án: mục tiêu, scope, invariant, capability status, architecture drift, roadmap và checklist bắt buộc |
 | [phase-0-baseline-2026-10-01.md](phase-0-baseline-2026-10-01.md) | Baseline hiện trạng mới nhất: routing core, test report, gap/dependency map, permission matrix và đề xuất Slice 1A |
 | [slice-1a-rbac-foundation.md](slice-1a-rbac-foundation.md) | RBAC additive, multi-role assignment, permission guard, audit, migration/backfill và verification |
 | [slice-1b-staff-role-management.md](slice-1b-staff-role-management.md) | Danh sách Staff phân trang và UI gán/thu hồi role với guard chống lockout |

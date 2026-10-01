@@ -1,0 +1,299 @@
+# Hospital Management — Project North Star
+
+Ngày checkpoint: **2026-10-01**  
+Baseline đánh giá: **commit `0ee1c4a` (hoàn tất Slice 1E)**  
+Trạng thái: **tài liệu canonical cấp dự án; phải đọc trước mọi slice mới**
+
+## 1. System objective
+
+Phát triển dần repository hiện hữu thành nền tảng quản lý khám chữa bệnh ngoại trú, bao phủ hành trình từ định danh bệnh nhân, lịch hẹn/tiếp nhận, Visit, điều phối phòng, khám lâm sàng, cận lâm sàng, kê/cấp thuốc, hóa đơn/thanh toán, hoàn tất và tái khám.
+
+Hệ thống **không được viết lại từ đầu**. Lõi phân luồng bệnh nhân đang hoạt động là tài sản cần bảo toàn; module mới tích hợp quanh lõi bằng ID tham chiếu, public application service hoặc domain event đã duyệt.
+
+## 2. Scope và non-goals
+
+### In scope
+
+- Web/BFF Next.js cho Staff và Patient; NestJS modular monolith; MySQL/Prisma.
+- Identity riêng cho Staff, Patient và QR Device.
+- Quản trị nhân viên/RBAC/audit; patient master; appointment/reception.
+- Visit ngoại trú, workflow template, routing, QR check-in, queue và doctor execution.
+- Vital signs, EMR/diagnosis, clinical orders/results, pharmacy, billing/payment.
+- Notification/realtime, reporting/search/export và patient portal.
+- Incremental migration, reconciliation, security, test và operational hardening.
+
+### Explicit non-goals hiện tại
+
+- Không rewrite stack hoặc chuyển microservice/ORM chỉ để “hiện đại hóa”.
+- Không thay thuật toán routing, priority/FIFO, ETA hoặc state machine routing khi chưa có proposal và phê duyệt.
+- Không triển khai inpatient/ward/bed, insurance claim, PACS/RIS/LIS sâu hoặc kho dược đầy đủ nếu business owner chưa đưa vào scope được duyệt. Đây là capability tiềm năng, không phải cam kết ngầm.
+- Không tự tuyên bố tuân thủ HIPAA hoặc pháp lý cụ thể khi chưa có đánh giá pháp vực.
+- Không tự xây dữ liệu tương tác thuốc/ICD/LOINC thiếu nguồn được kiểm chứng.
+
+## 3. Actors
+
+| Actor | Trách nhiệm mục tiêu |
+|---|---|
+| ADMIN | Quản trị danh mục, cơ sở vật chất, Staff/RBAC, vận hành và báo cáo; không mặc nhiên sửa nội dung chuyên môn đã ký |
+| DOCTOR | Khám, chẩn đoán, chỉ định, kê đơn, ký/amend hồ sơ trong phạm vi công việc |
+| NURSE | Tiếp nhận lâm sàng, sinh hiệu và hỗ trợ chăm sóc; không ký chẩn đoán thay Doctor |
+| RECEPTIONIST | Tạo/quản lý lịch hẹn, thông tin hành chính và tiếp nhận |
+| LAB_TECHNICIAN | Tiếp nhận/thực hiện/trả kết quả cận lâm sàng được phân công; không kê đơn |
+| PHARMACIST | Kiểm tra và cấp thuốc; không sửa chẩn đoán/nội dung đơn đã ký |
+| CASHIER | Hóa đơn, thanh toán, hoàn tiền theo quyền; không sửa hồ sơ y tế |
+| PATIENT | Quản lý dữ liệu được phép và chỉ truy cập tài nguyên của chính mình |
+| QR DEVICE | Xác thực riêng và check-in đúng phòng/assignment; không có quyền Staff |
+
+Role mới ngoài ADMIN/DOCTOR hiện đã tồn tại trong schema nhưng mặc định không có business permission cho đến khi domain tương ứng được triển khai.
+
+## 4. Domain map và data ownership
+
+| Domain owner | Dữ liệu/capability |
+|---|---|
+| Identity & Access | `users`, `user_profiles`, `refresh_tokens`, Role/Permission/assignment, Staff auth/session |
+| Patient Identity | OTP, Patient session, phone/Firebase authentication |
+| Patient Administration | `patients`, `patient_types`, tương lai appointment/reception |
+| Facility & Staffing | room type, room/runtime, device, doctor assignment |
+| Service Catalog | Flow, FlowStep, dependency và version/publish tương lai |
+| Encounter Runtime | Visit, VisitStep và dependency snapshot |
+| Routing Core | RoutingQueue, VisitAssignment, VisitToken, routing decisions/strategies |
+| Check-in & Queue | CheckInLog, RoomQueueEntry |
+| Clinical | VitalSign, MedicalRecord/revision, Diagnosis, ClinicalOrder/Result, Attachment — chưa có |
+| Pharmacy | Medication, Prescription/Item, Dispensation/Item — chưa có |
+| Revenue | Invoice/Item, Payment, Refund — chưa có |
+| Platform | ActivityLog, notification/preference, realtime, reports/export |
+| Simulation | Synthetic fixtures/run/event/metric/violation; dùng làm regression harness, không là production clinical source |
+
+Logical ownership được giữ trong một MySQL database ở giai đoạn hiện tại. Module không được dùng repository nội bộ của domain khác làm API công khai mới.
+
+## 5. Critical end-to-end workflows
+
+### 5.1 Workflow hiện hoạt động
+
+```text
+Patient OTP/Firebase authentication
+  -> xem service/Flow
+  -> tạo Visit trực tiếp
+  -> Visit graph được snapshot từ Flow
+  -> root VisitStep READY
+  -> routing chọn Room và tạo Assignment + VisitToken
+  -> QR Device check-in đúng phòng
+  -> RoomQueueEntry
+  -> Doctor xác nhận ca/phòng, start exam
+  -> Doctor complete exam
+  -> giải phóng RoomRuntime và queue
+  -> mở dependency tiếp theo
+  -> event kích hoạt routing tiếp
+  -> Visit hoàn tất khi workflow hiện hữu kết thúc
+```
+
+Backend và Patient/Admin UI bao phủ phần lớn đường đi này. Doctor UI vẫn chưa có workspace queue/start/complete hoàn chỉnh; hành trình toàn hệ thống chưa có browser E2E.
+
+### 5.2 Workflow mục tiêu
+
+```text
+Patient registration
+ -> Appointment
+ -> Reception
+ -> idempotent Visit creation
+ -> existing routing/check-in/queue core
+ -> Vital signs
+ -> Doctor clinical record
+ -> Clinical orders/results when needed
+ -> Diagnosis + signed prescription
+ -> Dispensation
+ -> Invoice/payment
+ -> independent completion policy
+ -> published summary + follow-up appointment + notification
+```
+
+Appointment chỉ tạo đầu vào cho Visit. Clinical/finance module không được ghi trực tiếp bảng routing. Completion policy mở rộng sau routing, không thay thế hành vi hoàn thành hiện tại nếu chưa được duyệt.
+
+## 6. Architectural invariants
+
+1. Tiếp tục modular monolith; controller xử lý HTTP, service giữ nghiệp vụ, repository giữ persistence, DTO/mapper giữ contract.
+2. Database hiện hữu là tài sản; migration mới additive/expand-first, không sửa migration đã chạy và không contract/drop khi chưa qua compatibility window.
+3. Mỗi aggregate có một writer chính. Không dual-write đồng bộ hai kiến trúc song song.
+4. Cross-domain integration dùng public application service/event contract; không tạo dependency repository mới xuyên module.
+5. API list có pagination; aggregate/report tính ở backend, không tải toàn bộ về browser để đếm.
+6. Multi-row mutation dùng transaction; thao tác dễ gửi lặp dùng idempotency/conditional write.
+7. Signed clinical data và issued financial data bất biến; correction bằng revision/compensating record, không overwrite/delete.
+8. Frontend chỉ dùng API thật, có loading/empty/error/retry/success/confirm phù hợp và không trình bày placeholder như chức năng hoàn chỉnh.
+9. Socket/event hiện là delivery/invalidation; không được coi là durable source of truth.
+
+## 7. Routing invariants — frozen core
+
+Không tự ý thay đổi:
+
+- cách Visit tạo VisitStep/dependency snapshot;
+- transition `LOCKED -> READY` và cách dependency được resolve;
+- strategy mặc định, candidate room, workload/ETA, tie-break và priority/FIFO;
+- cách tạo RoutingQueue, VisitAssignment và VisitToken;
+- QR check-in, RoomQueueEntry và ownership theo Device/Room;
+- optimistic claim/release của RoomRuntime;
+- Doctor start/complete và event mở bước kế tiếp;
+- domain event `visit-step.ready`, `visit.updated`, `room-queue.updated`;
+- semantics/state của Visit, VisitStep, Assignment, RoutingQueue, VisitToken, RoomQueueEntry và RoomRuntime;
+- simulation behavior với cùng seed/config.
+
+Frozen implementation boundary gồm `visits`, `routing`, `check-in`, `rooms/room-runtime.repository`, `doctor` và toàn bộ simulation regression harness. Các endpoint ad-hoc step, skip step và queue reorder là legacy exception surface, không phải extension point mẫu.
+
+Manual room transfer, priority/emergency, recall/no-show, requeue, inserted step, cancelling routed step, doctor/room transfer hoặc shift handoff có active patient đều cần proposal riêng và approval trước code.
+
+## 8. Security invariants
+
+- Backend authorization là nguồn quyết định; menu visibility không phải security boundary.
+- Deny by default; Patient chỉ own-resource; Staff clinical access phải có scope/care relationship trước khi mở rộng.
+- Password/token/OTP/QR secret/clinical note/payment secret không vào response hoặc application log.
+- Access token phải kiểm tra principal status và token version; refresh rotation/revoke chống replay.
+- Sensitive read/write/sign/export/refund phải audit actor, action, resource, request/client context và reason khi cần.
+- Audit metadata được schema hóa/redact; không sao chép payload y tế hoặc credential.
+- Mutation cookie/BFF giữ CSRF origin defense; production yêu cầu HTTPS/Secure cookie.
+- File, webhook, payment và external integration phải có authorization, validation, replay protection và idempotency trước khi mở.
+
+## 9. Capability status tại Slice 1E
+
+| Domain | Status | Bằng chứng/gap chính |
+|---|---|---|
+| Authentication | PARTIAL | Staff/Patient/Device auth, rotation, rate limit và token-version có; MFA, shared rate-limit store, full Patient v1 cutover chưa có |
+| Authorization / RBAC | PARTIAL | Role/Permission/multi-assignment và permission guard có; resource/facility/care scope chưa có; legacy `users.role` còn tồn tại |
+| Staff management | PARTIAL | Create/status/assign/revoke role có; edit profile/password UI và role-history view chưa hoàn chỉnh |
+| Patient management | PARTIAL | OTP-created profile, Admin list/search/type update và Patient own profile có; merge/canonical identity/consent chưa có |
+| Doctor management | PARTIAL | Account và shift/room assignment có; clinical worklist/workspace UI chưa hoàn chỉnh |
+| Appointment / reception | NOT IMPLEMENTED | Patient hiện tạo Visit trực tiếp |
+| Visit / encounter lifecycle | PARTIAL | Visit graph và happy path có; formal Encounter, cancellation/reopen/completion policy chưa có |
+| Clinical workflow | NOT IMPLEMENTED | Chưa có vital/EMR/diagnosis/order/prescription |
+| Room management | PARTIAL | CRUD/status/runtime có; maintenance drain và facility hierarchy chưa có |
+| Queue management | PARTIAL | Queue/check-in/reorder có; concurrency/rebalance/exception policy còn nợ |
+| Routing engine | COMPLETE (frozen baseline) | Happy path, retry, strategies và regression/simulation hiện hoạt động; production scale/outbox chưa hoàn thiện nhưng không được redesign ngầm |
+| Workflow templates | PARTIAL | Flow DAG CRUD/UI có; immutable publish/version chưa có |
+| Doctor scheduling / room assignment | PARTIAL | CRUD/confirm room có; concurrent overlap protection và history/effective dating chưa đủ |
+| Nursing workflow | NOT IMPLEMENTED | Role tồn tại nhưng chưa permission/domain/UI |
+| Laboratory | NOT IMPLEMENTED | Không có model/API/UI |
+| Pharmacy | NOT IMPLEMENTED | Không có model/API/UI |
+| Billing / cashier | NOT IMPLEMENTED | Không có model/API/UI |
+| Notifications / realtime | PARTIAL | Socket invalidation backend có; persistent notification/read/preference và frontend integration chưa có |
+| Audit | PARTIAL | Queue/RBAC/staff lifecycle audit và list UI có; auth/session/self-service/clinical read coverage, immutable retention và effective roles còn thiếu |
+| Reporting / dashboard | PARTIAL | Admin dashboard cơ bản; metric definition/aggregate/filter/export chưa đủ |
+| Device integration | PARTIAL | Device auth/manage/QR check-in có; attestation/offline/replay hardening chưa có |
+| Patient application integration | PARTIAL | Web patient login/profile/service/Visit/QR có; external mobile source không nằm trong repo; clinical/appointment/finance portal chưa có |
+| Inpatient/insurance/deep external HIS | OUT OF SCOPE pending approval | Có trong tài liệu target rộng nhưng không được xem là cam kết hiện hành |
+
+## 10. Phase 0 → Slice 1E review
+
+| Milestone | Capability/dependency đã giải quyết | Debt/compatibility còn lại |
+|---|---|---|
+| Phase 0 / Slice 0 | Baseline, routing regression, health, request ID/redaction, CORS/Swagger, DB inventory/reconciliation/backup rehearsal, CI safety harness | Chỉ có bằng chứng local; production clone/RPO-RTO/observability và frontend E2E còn mở |
+| Auth foundation trước 1A | HttpOnly BFF, token version, atomic refresh/OTP, rate limit, principal DB check | Legacy auth endpoint, in-process rate limit/single-flight, Patient endpoint cutover chưa hoàn tất |
+| Slice 1A | Additive Role/Permission/RolePermission/UserRoleAssignment, backfill, permission guard, RBAC audit/API | `users.role` giữ compatibility; ADMIN fallback cho `rbac.manage`; custom role scope/history chưa chuẩn hóa |
+| Slice 1B | Staff pagination và UI grant/revoke; last-role/last-admin guard | Danh sách đang lấy limit 100 ở UI; chưa có dedicated role-history projection |
+| Slice 1C | Permission catalog và enforcement trên Staff business controllers | `RolesGuard` vẫn global; legacy role decorator/code còn tồn tại; resource-level scope chưa có |
+| Slice 1D | Role nghiệp vụ mới, Staff create/status, initial assignment và audit transaction | Role mới mặc định deny và chưa có workspace; `users.role` vẫn bắt buộc/JWT claim |
+| Slice 1E | Session `sid`, context, list/revoke UI/API | Session revoke chưa audit; `lastUsedAt` chỉ ghi lúc tạo/rotate; user-agent thô; profile page chưa edit profile/password |
+
+Không có TODO database migration đang failed tại local; 11 migration đã được áp dụng. Production migration sign-off vẫn mở.
+
+## 11. Architecture drift checkpoint
+
+### Drift/risks được phát hiện
+
+1. **Dual authorization mechanism:** global `RolesGuard` và `PermissionsGuard` cùng tồn tại. Business controller đã chuyển phần lớn sang permission, nhưng `users.role`, JWT `role`, frontend proxy và ADMIN compatibility fallback vẫn là đường song song.
+2. **Transitional `users.role`:** field này cần giữ để backward compatibility ngắn hạn, nhưng không được trở thành nguồn multi-role vĩnh viễn. Target là assignment/permission làm authorization source; một primary UI role có thể tồn tại riêng nếu business cần, không đồng nghĩa quyền.
+3. **Frontend role contract drift:** auth type/proxy/Doctor shell chỉ hiểu ADMIN/DOCTOR trong khi backend enum đã có năm Staff role mới. Các role mới có thể được tạo nhưng chưa có landing/workspace hợp lệ.
+4. **Versioning drift:** RBAC/session route dùng `/api/v1`, đa số domain endpoint vẫn legacy unversioned. Không tạo endpoint duplicate chỉ để đổi prefix; cần cutover plan theo domain.
+5. **Module boundary debt:** routing/check-in/doctor/realtime/visits vẫn import repository xuyên module như baseline. Slice 1A–1E chưa làm xấu thêm routing, nhưng debt chưa được trả.
+6. **Audit inconsistency:** mutation audit mới dùng service calls; chưa có matrix/platform policy thống nhất, login/session/self-profile và sensitive read chưa phủ.
+7. **State machine debt:** enum cancellation/reroute/processing tồn tại một phần nhưng use case không đầy đủ. Không tạo state machine thứ hai trong module mới.
+8. **Contract duplication:** backend Zod DTO và frontend TypeScript type viết tay; session/user role đã bắt đầu lệch.
+9. **UI placeholder:** header global search và notification vẫn là affordance chưa có backend hoàn chỉnh.
+10. **Transaction gaps legacy:** doctor shift overlap, queue ordering và một số state transitions còn check/write concurrency debt đã biết.
+
+### Không phát hiện drift nghiêm trọng từ Slice 1A–1E
+
+- Không có routing algorithm/state/schema bị copy hoặc thay đổi.
+- RBAC/session schema đều additive; migration cũ không bị sửa.
+- Business logic mới chủ yếu nằm service/repository, controller giữ HTTP concern.
+- Không có parallel clinical/appointment/finance architecture được tạo sớm.
+
+## 12. Roadmap hiện tại theo dependency
+
+### Foundation closure
+
+1. **1F — Identity/RBAC convergence and self-service closure**: quyết định/cắt rõ compatibility `users.role`, effective-role contract, frontend landing cho role mới hoặc chặn activation, profile/password, session/audit coverage và authorization matrix.
+2. **1G — Audit policy platform**: action catalog, metadata schema/redaction, sensitive-read hook, actor effective roles và retention/query contract.
+3. **1H — Contract and E2E harness**: OpenAPI contract check/generated types PoC, Staff role×endpoint matrix, browser/API happy-path regression.
+
+### Core business workflow
+
+4. **2A — Appointment foundation**: schedule/slot/appointment state/history; chưa tạo Visit tự động.
+5. **2B — Reception and idempotent Appointment→Visit handoff**: public Visits application service, duplicate prevention; routing core giữ nguyên.
+6. **3A–3B — VitalSign backend + Nurse/Doctor UI**: append-only measurements tham chiếu Visit.
+7. **4A–4C — MedicalRecord draft/sign/amend/publication**.
+8. **5A–5C — Independent ClinicalOrder/result**; mọi tự động thêm routing step là slice riêng cần approval.
+9. **6A–6C — Medication/prescription/dispensation**.
+10. **7A–7C — Invoice/payment/refund**.
+11. **8A–8B — Completion policy, summary và follow-up**, bao quanh routing completion hiện hữu.
+
+### Supporting domains, integration, reporting, hardening
+
+12. Persistent notification/preferences/realtime adapters được triển khai ngay trước domain event đầu tiên cần user-facing delivery, không nhất thiết đứng trước appointment.
+13. Scoped dashboard/search/export sau khi các source domain ổn định.
+14. Patient portal mở rộng theo từng dữ liệu đã publication, không xây màn hình rỗng trước domain.
+15. Operational exceptions: một state proposal/slice, regression-first, approval nếu chạm routing.
+16. Production hardening: shared rate limit/socket/outbox khi topology nhiều replica được xác nhận; security/E2E/performance/cutover.
+
+## 13. Mandatory pre-slice checklist
+
+Trước khi code, slice owner phải ghi lại:
+
+- [ ] Đã đọc `docs/PROJECT_NORTH_STAR.md` và roadmap hiện tại.
+- [ ] Đã inspect implementation, schema, migration, API và UI liên quan.
+- [ ] Đã xác định domain owner và dependency bị ảnh hưởng.
+- [ ] Đã xác định ảnh hưởng routing/state machine; nếu chạm frozen core, đã có approval.
+- [ ] Đã xác định permission, resource scope, privacy và audit impact.
+- [ ] Đã xác định migration/backfill/reconciliation/rollback impact.
+- [ ] Đã xác nhận không có implementation tương đương hoặc parallel architecture.
+- [ ] Đã định nghĩa actor, state transition, acceptance criteria và API/UI contract.
+- [ ] Đã định nghĩa unit/integration/authorization/migration/regression test.
+- [ ] Đã chốt rollback boundary và phần không thuộc scope.
+
+Sau khi hoàn thành:
+
+- [ ] Prisma validate/generate và migration status sạch.
+- [ ] Backend/frontend lint và type-check pass.
+- [ ] Unit/integration/authorization test liên quan pass.
+- [ ] Production build pass.
+- [ ] DB reconciliation không có lỗi/cảnh báo mới.
+- [ ] Routing/simulation regression pass khi backend/domain thay đổi.
+- [ ] Critical E2E workflow liên quan đã được kiểm chứng.
+- [ ] Architectural/routing/security invariants vẫn đúng.
+- [ ] Slice report và North Star capability/roadmap được cập nhật nếu trạng thái đổi.
+- [ ] Working tree được kiểm tra và commit có rollback boundary rõ.
+
+## 14. Candidate slices đề nghị — chưa được phê duyệt triển khai
+
+### Candidate A — 1F Identity/RBAC convergence (khuyến nghị)
+
+- Dependency: đóng compatibility và contract identity trước khi NURSE/RECEPTIONIST/LAB/PHARMACIST/CASHIER dùng hệ thống.
+- Business value: Staff mới có đường đăng nhập/landing an toàn; hồ sơ/password/session/audit khép kín.
+- Risk: lockout hoặc privilege drift nếu cắt `users.role` quá sớm.
+- Modules: auth, users, rbac, activity-log, BFF/proxy/AuthGuard/profile.
+- Acceptance: một authorization source rõ; compatibility plan có sunset; role mới không rơi vào route sai; password revoke atomic; audit/matrix test đầy đủ; không chạm routing.
+
+### Candidate B — 1G Audit policy platform
+
+- Dependency: cần trước dữ liệu vital/clinical nhạy cảm.
+- Business value: truy vết nhất quán quyền, session, Staff mutation và sensitive read.
+- Risk: metadata chứa PII hoặc audit write làm fail business transaction nếu policy không rõ.
+- Modules: activity-log, request context, RBAC/users/auth; không chạm routing mutation.
+- Acceptance: action catalog, redaction schema, actor/effective-role context, query/retention contract và test denylist.
+
+### Candidate C — 2A Appointment foundation
+
+- Dependency: patient/service/staff foundation đã có; chưa cần sửa routing nếu chưa handoff sang Visit.
+- Business value: bắt đầu hành trình bệnh viện mục tiêu thay vì tiếp tục platform-only.
+- Risk: slot/capacity/schedule policy chưa được business owner quyết định.
+- Modules: appointment mới, patient/service/doctor read ports, Patient/Reception UI.
+- Acceptance: book/confirm/reschedule/cancel/history, overlap/capacity/idempotency và authorization; không tạo/ghi routing table.
+
+**Quyết định đề nghị:** Candidate A trước. Không code cho đến khi owner duyệt phạm vi convergence, đặc biệt semantics/sunset của `users.role` và landing cho năm role nghiệp vụ mới.
