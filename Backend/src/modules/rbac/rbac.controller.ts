@@ -6,7 +6,7 @@ import { getRequestId, RequestWithContext } from '../../common/http/request-cont
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { Permissions } from './decorators/permissions.decorator';
-import { AssignRoleDto, CreateRoleDto, RbacPaginationDto, RevokeRoleDto, UpdateRoleDto } from './dto/rbac.dto';
+import { AssignRoleDto, CreateRoleDto, RbacPaginationDto, RevokeRoleDto, StaffQueryDto, UpdateRoleDto } from './dto/rbac.dto';
 import { RbacService } from './rbac.service';
 
 @ApiTags('RBAC')
@@ -21,6 +21,9 @@ export class RbacController {
 
   @Get('roles')
   listRoles(@Query() query: RbacPaginationDto) { return this.service.listRoles(query); }
+
+  @Get('staff')
+  listStaff(@Query() query: StaffQueryDto) { return this.service.listStaff(query); }
 
   @Post('roles')
   createRole(@CurrentUser() actor: JwtPayload, @Body() dto: CreateRoleDto, @Req() request: RequestWithContext) { return this.service.createRole(actor.sub, dto, this.auditContext(request)); }

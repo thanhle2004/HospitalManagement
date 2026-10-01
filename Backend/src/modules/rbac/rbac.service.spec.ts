@@ -10,6 +10,9 @@ describe('RbacService', () => {
     assignRole: jest.fn(),
     revokeRole: jest.fn(),
     countUserRoles: jest.fn(),
+    countRoleAssignments: jest.fn(),
+    listStaff: jest.fn(),
+    countStaff: jest.fn(),
   };
   const activityLog = { log: jest.fn() };
   const transaction = jest.fn(async (callback: (tx: object) => unknown) => callback({ tx: true }));
@@ -19,11 +22,29 @@ describe('RbacService', () => {
     jest.clearAllMocks();
     repository.findUser.mockResolvedValue({ id: 'user-1', deletedAt: null });
     repository.findRoleByCode.mockResolvedValue({ id: 7, code: 'DOCTOR' });
+    repository.countRoleAssignments.mockResolvedValue(2);
+  });
+
+  it('does not revoke the final ADMIN assignment', async () => {
+    repository.findRoleByCode.mockResolvedValue({ id: 1, code: 'ADMIN' });
+    repository.countUserRoles.mockResolvedValue(2);
+    repository.countRoleAssignments.mockResolvedValue(1);
+    await expect(service.revokeRole('admin-1', 'user-1', 'ADMIN', 'Điều chỉnh quyền')).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.revokeRole).not.toHaveBeenCalled();
   });
 
   it('uses assigned permission codes', async () => {
     repository.findPermissionCodesForUser.mockResolvedValue([{ code: 'rbac.manage' }]);
     await expect(service.userHasEveryPermission('user-1', ['rbac.manage'], UserRole.DOCTOR)).resolves.toBe(true);
+  });
+
+  it('returns a paginated Staff projection without credential fields', async () => {
+    repository.listStaff.mockResolvedValue([{ id: 'user-1', email: 'doctor@example.com', role: UserRole.DOCTOR, status: 'ACTIVE', lastLoginAt: null, createdAt: new Date('2026-01-01'), profile: { fullName: 'Bác sĩ A', phone: null }, roleAssignments: [{ role: { code: 'DOCTOR' } }] }]);
+    repository.countStaff.mockResolvedValue(1);
+    const result = await service.listStaff({ page: 1, limit: 20 });
+    expect(result.total).toBe(1);
+    expect(result.items[0]).toEqual(expect.objectContaining({ id: 'user-1', roles: ['DOCTOR'] }));
+    expect(result.items[0]).not.toHaveProperty('passwordHash');
   });
 
   it('keeps a narrow ADMIN compatibility fallback during backfill', async () => {

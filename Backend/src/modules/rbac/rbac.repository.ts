@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 type Db = PrismaService | Prisma.TransactionClient;
@@ -34,6 +34,47 @@ export class RbacRepository {
 
   countRoles(db: Db = this.prisma): Promise<number> {
     return db.role.count();
+  }
+
+  listStaff(skip: number, take: number, search?: string, status?: UserStatus, db: Db = this.prisma) {
+    const where: Prisma.UserWhereInput = {
+      deletedAt: null,
+      status,
+      ...(search
+        ? {
+            OR: [
+              { email: { contains: search } },
+              { profile: { fullName: { contains: search } } },
+            ],
+          }
+        : {}),
+    };
+    return db.user.findMany({
+      where,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        lastLoginAt: true,
+        createdAt: true,
+        profile: { select: { fullName: true, phone: true } },
+        roleAssignments: { include: { role: true }, orderBy: { assignedAt: 'asc' } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    });
+  }
+
+  countStaff(search?: string, status?: UserStatus, db: Db = this.prisma): Promise<number> {
+    return db.user.count({
+      where: {
+        deletedAt: null,
+        status,
+        ...(search ? { OR: [{ email: { contains: search } }, { profile: { fullName: { contains: search } } }] } : {}),
+      },
+    });
   }
 
   findRoleByCode(code: string, db: Db = this.prisma) {
@@ -98,5 +139,9 @@ export class RbacRepository {
 
   countUserRoles(userId: string, db: Db = this.prisma): Promise<number> {
     return db.userRoleAssignment.count({ where: { userId } });
+  }
+
+  countRoleAssignments(roleId: number, db: Db = this.prisma): Promise<number> {
+    return db.userRoleAssignment.count({ where: { roleId } });
   }
 }

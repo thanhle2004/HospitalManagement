@@ -1,5 +1,6 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
+import { UserStatus } from '@prisma/client';
 
 const CodeSchema = z
   .string()
@@ -12,6 +13,12 @@ export const PaginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 export class RbacPaginationDto extends createZodDto(PaginationSchema) {}
+
+export const StaffQuerySchema = PaginationSchema.extend({
+  search: z.string().trim().max(100).optional(),
+  status: z.nativeEnum(UserStatus).optional(),
+});
+export class StaffQueryDto extends createZodDto(StaffQuerySchema) {}
 
 export const CreateRoleSchema = z
   .object({

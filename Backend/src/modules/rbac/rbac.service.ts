@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { UserRole } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
-import { AssignRoleDto, CreateRoleDto, RbacPaginationDto, UpdateRoleDto } from './dto/rbac.dto';
+import { AssignRoleDto, CreateRoleDto, RbacPaginationDto, StaffQueryDto, UpdateRoleDto } from './dto/rbac.dto';
 import { RbacRepository } from './rbac.repository';
 
 export interface RbacAuditContext {
@@ -42,6 +42,30 @@ export class RbacService {
       this.repository.countRoles(),
     ]);
     return { items: roles.map((role) => this.mapRole(role)), total, page: query.page, limit: query.limit };
+  }
+
+  async listStaff(query: StaffQueryDto) {
+    const skip = (query.page - 1) * query.limit;
+    const [items, total] = await Promise.all([
+      this.repository.listStaff(skip, query.limit, query.search, query.status),
+      this.repository.countStaff(query.search, query.status),
+    ]);
+    return {
+      items: items.map((user) => ({
+        id: user.id,
+        email: user.email,
+        legacyRole: user.role,
+        status: user.status,
+        fullName: user.profile?.fullName ?? null,
+        phone: user.profile?.phone ?? null,
+        lastLoginAt: user.lastLoginAt,
+        createdAt: user.createdAt,
+        roles: user.roleAssignments.map((assignment) => assignment.role.code),
+      })),
+      total,
+      page: query.page,
+      limit: query.limit,
+    };
   }
 
   async createRole(actorId: string, dto: CreateRoleDto, context: RbacAuditContext = {}) {
@@ -94,6 +118,9 @@ export class RbacService {
     const role = await this.repository.findRoleByCode(roleCode.toUpperCase());
     if (!role) throw new NotFoundException(`Role ${roleCode} không tồn tại`);
     if ((await this.repository.countUserRoles(userId)) <= 1) throw new BadRequestException('Nhân viên phải còn ít nhất một vai trò');
+    if (role.code === 'ADMIN' && (await this.repository.countRoleAssignments(role.id)) <= 1) {
+      throw new BadRequestException('Không thể thu hồi vai trò ADMIN cuối cùng');
+    }
     await this.prisma.transaction(async (tx) => {
       const deleted = await this.repository.revokeRole(userId, role.id, tx);
       if (!deleted.count) throw new NotFoundException('Nhân viên không có vai trò này');

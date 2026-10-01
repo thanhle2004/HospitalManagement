@@ -30,3 +30,15 @@ export interface CreateRolePayload {
   description?: string;
   permissionCodes: string[];
 }
+
+export interface StaffRoleSummary {
+  id: string;
+  email: string;
+  legacyRole: "ADMIN" | "DOCTOR";
+  status: "ACTIVE" | "INACTIVE" | "LOCKED";
+  fullName: string | null;
+  phone: string | null;
+  lastLoginAt: string | null;
+  createdAt: string;
+  roles: string[];
+}
