@@ -15,6 +15,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { CreateStaffDto, UpdateStaffStatusDto } from './dto/create-staff.dto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { RefreshTokenRepository } from '../auth/repositories/refresh-token.repository';
 
 export interface StaffAuditContext {
   requestId?: string;
@@ -30,6 +31,7 @@ export class UsersService {
     private readonly usersRepository: UsersRepository,
     private readonly prisma: PrismaService,
     private readonly activityLogService: ActivityLogService,
+    private readonly refreshTokenRepository: RefreshTokenRepository,
   ) {}
 
   /**
@@ -178,16 +180,34 @@ export class UsersService {
   async updateProfile(
     userId: string,
     dto: UpdateProfileDto,
+    context: StaffAuditContext = {},
   ): Promise<UserResponseDto> {
     await this.findOrThrow(userId);
-
-    await this.usersRepository.updateProfile(userId, dto);
-
-    const updated = await this.usersRepository.findById(userId);
+    const changedFields = Object.keys(dto).sort();
+    const updated = await this.prisma.transaction(async (tx) => {
+      await this.usersRepository.updateProfile(userId, dto, tx);
+      await this.activityLogService.log(
+        {
+          userId,
+          action: 'STAFF_PROFILE_UPDATED',
+          entity: 'User',
+          entityId: userId,
+          metadata: { requestId: context.requestId, changedFields },
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        },
+        tx,
+      );
+      return this.usersRepository.findById(userId, tx);
+    });
     return UsersMapper.toResponseDto(updated!);
   }
 
-  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+    context: StaffAuditContext = {},
+  ): Promise<void> {
     const user = await this.findOrThrow(userId);
 
     const matches = await bcrypt.compare(dto.oldPassword, user.passwordHash);
@@ -196,7 +216,22 @@ export class UsersService {
     }
 
     const newHash = await bcrypt.hash(dto.newPassword, PASSWORD_SALT_ROUNDS);
-    await this.usersRepository.updatePassword(userId, newHash);
+    await this.prisma.transaction(async (tx) => {
+      await this.usersRepository.updatePassword(userId, newHash, tx);
+      await this.refreshTokenRepository.revokeAllForUser(userId, tx);
+      await this.activityLogService.log(
+        {
+          userId,
+          action: 'STAFF_PASSWORD_CHANGED',
+          entity: 'User',
+          entityId: userId,
+          metadata: { requestId: context.requestId },
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        },
+        tx,
+      );
+    });
   }
 
   private async findOrThrow(id: string) {

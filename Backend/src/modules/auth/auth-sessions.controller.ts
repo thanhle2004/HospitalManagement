@@ -15,7 +15,6 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
 import { Public } from '../../common/decorators/public.decorator';
 import { getClientAddress } from '../../common/http/client-address.util';
 import { AuthRateLimitService } from '../../common/security/auth-rate-limit.service';
@@ -29,6 +28,7 @@ import { StaffSessionResponseDto } from './dto/staff-session-response.dto';
 import { StaffCurrentSessionDto } from './dto/staff-current-session.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { RbacService } from '../rbac/rbac.service';
+import { getRequestId, RequestWithContext } from '../../common/http/request-context';
 
 @ApiTags('Auth Sessions v1')
 @Controller('api/v1/auth/sessions')
@@ -45,7 +45,7 @@ export class AuthSessionsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Tạo phiên Staff v1; phản hồi ẩn trạng thái tài khoản' })
   @ApiOkResponse({ type: TokenResponseDto })
-  login(@Req() request: Request, @Body() dto: LoginDto) {
+  login(@Req() request: RequestWithContext, @Body() dto: LoginDto) {
     this.limitLogin(request, dto.email);
     return this.authService.login(dto, true, this.context(request));
   }
@@ -55,7 +55,7 @@ export class AuthSessionsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate refresh token cho phiên Staff v1' })
   @ApiOkResponse({ type: TokenResponseDto })
-  refresh(@Req() request: Request, @Body() dto: RefreshTokenDto) {
+  refresh(@Req() request: RequestWithContext, @Body() dto: RefreshTokenDto) {
     this.limitRefresh(request, dto.refreshToken);
     return this.authService.refresh(dto, this.context(request));
   }
@@ -76,8 +76,11 @@ export class AuthSessionsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Thu hồi toàn bộ phiên Staff và tăng token version' })
-  async logout(@CurrentUser() user: JwtPayload): Promise<void> {
-    await this.authService.logout(user.sub);
+  async logout(
+    @CurrentUser() user: JwtPayload,
+    @Req() request: RequestWithContext,
+  ): Promise<void> {
+    await this.authService.logout(user.sub, this.auditContext(request));
   }
 
   @Get('active')
@@ -92,32 +95,47 @@ export class AuthSessionsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Thu hồi mọi phiên Staff trừ phiên hiện tại' })
-  revokeOthers(@CurrentUser() user: JwtPayload) {
-    return this.authService.revokeOtherSessions(user.sub, user.sid);
+  revokeOthers(
+    @CurrentUser() user: JwtPayload,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.authService.revokeOtherSessions(user.sub, user.sid, this.auditContext(request));
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Thu hồi một phiên Staff thuộc tài khoản hiện tại' })
-  revokeOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.authService.revokeSession(user.sub, id);
+  revokeOne(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.authService.revokeSession(user.sub, id, this.auditContext(request));
   }
 
-  private context(request: Request) {
+  private context(request: RequestWithContext) {
     return {
       ipAddress: getClientAddress(request),
       deviceInfo: request.headers['user-agent'],
     };
   }
 
-  private limitLogin(request: Request, email: string): void {
+  private auditContext(request: RequestWithContext) {
+    return {
+      requestId: getRequestId(request),
+      ipAddress: getClientAddress(request),
+      userAgent: request.headers['user-agent'],
+    };
+  }
+
+  private limitLogin(request: RequestWithContext, email: string): void {
     const address = getClientAddress(request);
     this.rateLimit.assertAllowed('staff-login-ip', [address], 20, 60_000);
     this.rateLimit.assertAllowed('staff-login-identity', [email], 5, 60_000);
   }
 
-  private limitRefresh(request: Request, refreshToken: string): void {
+  private limitRefresh(request: RequestWithContext, refreshToken: string): void {
     const address = getClientAddress(request);
     this.rateLimit.assertAllowed('staff-refresh-ip', [address], 60, 60_000);
     this.rateLimit.assertAllowed(

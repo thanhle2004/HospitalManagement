@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -24,6 +25,8 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { Permissions } from '../rbac/decorators/permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { getRequestId, RequestWithContext } from '../../common/http/request-context';
+import { getClientAddress } from '../../common/http/client-address.util';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -85,8 +88,12 @@ export class UsersController {
   @Patch('me')
   @ApiOperation({ summary: 'Cập nhật profile của chính mình' })
   @ApiOkResponse({ type: UserResponseDto })
-  updateMe(@CurrentUser() user: JwtPayload, @Body() dto: UpdateProfileDto) {
-    return this.usersService.updateProfile(user.sub, dto);
+  updateMe(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdateProfileDto,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.usersService.updateProfile(user.sub, dto, this.auditContext(request));
   }
 
   @Post('me/change-password')
@@ -95,7 +102,16 @@ export class UsersController {
   async changeMyPassword(
     @CurrentUser() user: JwtPayload,
     @Body() dto: ChangePasswordDto,
+    @Req() request: RequestWithContext,
   ): Promise<void> {
-    await this.usersService.changePassword(user.sub, dto);
+    await this.usersService.changePassword(user.sub, dto, this.auditContext(request));
+  }
+
+  private auditContext(request: RequestWithContext) {
+    return {
+      requestId: getRequestId(request),
+      ipAddress: getClientAddress(request),
+      userAgent: request.headers['user-agent'],
+    };
   }
 }

@@ -4,13 +4,13 @@ import { Gender } from '@prisma/client';
 
 export const UpdateProfileSchema = z
   .object({
-    fullName: z.string().min(1).optional(),
-    phone: z.string().optional(),
-    avatarUrl: z.string().optional(),
+    fullName: z.string().trim().min(1).max(120).optional(),
+    phone: z.string().trim().max(30).optional(),
+    avatarUrl: z.string().trim().url().max(2048).optional(),
     gender: z.nativeEnum(Gender).optional(),
     birthday: z.coerce.date().optional(),
-    address: z.string().optional(),
-    description: z.string().optional(),
+    address: z.string().trim().max(500).optional(),
+    description: z.string().trim().max(1000).optional(),
   })
   .strict();
 

@@ -14,9 +14,9 @@ import { TokenResponseDto } from './dto/token-response.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
-import type { Request } from 'express';
 import { AuthRateLimitService } from '../../common/security/auth-rate-limit.service';
 import { getClientAddress } from '../../common/http/client-address.util';
+import { getRequestId, RequestWithContext } from '../../common/http/request-context';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -31,7 +31,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đăng nhập Admin/Doctor bằng email + password' })
   @ApiOkResponse({ type: TokenResponseDto })
-  login(@Req() request: Request, @Body() dto: LoginDto) {
+  login(@Req() request: RequestWithContext, @Body() dto: LoginDto) {
     this.limitLogin(request, dto.email);
     return this.authService.login(dto, false, { ipAddress: getClientAddress(request), deviceInfo: request.headers['user-agent'] });
   }
@@ -41,7 +41,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cấp access token mới từ refresh token (có rotation)' })
   @ApiOkResponse({ type: TokenResponseDto })
-  refresh(@Req() request: Request, @Body() dto: RefreshTokenDto) {
+  refresh(@Req() request: RequestWithContext, @Body() dto: RefreshTokenDto) {
     this.limitRefresh(request, dto.refreshToken);
     return this.authService.refresh(dto, { ipAddress: getClientAddress(request), deviceInfo: request.headers['user-agent'] });
   }
@@ -51,17 +51,24 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Revoke toàn bộ refresh token của user hiện tại' })
-  async logout(@CurrentUser() user: JwtPayload): Promise<void> {
-    await this.authService.logout(user.sub);
+  async logout(
+    @CurrentUser() user: JwtPayload,
+    @Req() request: RequestWithContext,
+  ): Promise<void> {
+    await this.authService.logout(user.sub, {
+      requestId: getRequestId(request),
+      ipAddress: getClientAddress(request),
+      userAgent: request.headers['user-agent'],
+    });
   }
 
-  private limitLogin(request: Request, email: string): void {
+  private limitLogin(request: RequestWithContext, email: string): void {
     const address = getClientAddress(request);
     this.rateLimit.assertAllowed('staff-login-ip', [address], 20, 60_000);
     this.rateLimit.assertAllowed('staff-login-identity', [email], 5, 60_000);
   }
 
-  private limitRefresh(request: Request, refreshToken: string): void {
+  private limitRefresh(request: RequestWithContext, refreshToken: string): void {
     const address = getClientAddress(request);
     this.rateLimit.assertAllowed('staff-refresh-ip', [address], 60, 60_000);
     this.rateLimit.assertAllowed(

@@ -16,6 +16,13 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { hashToken } from './utils/hash-token.util';
+import { ActivityLogService } from '../activity-log/activity-log.service';
+
+export interface AuthAuditContext {
+  requestId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
 
 @Injectable()
 export class AuthService {
@@ -25,6 +32,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly activityLogService: ActivityLogService,
   ) {}
 
   async login(
@@ -117,10 +125,22 @@ export class AuthService {
     });
   }
 
-  async logout(userId: string): Promise<void> {
+  async logout(userId: string, context: AuthAuditContext = {}): Promise<void> {
     await this.prisma.transaction(async (tx) => {
       await this.refreshTokenRepository.revokeAllForUser(userId, tx);
       await this.usersRepository.incrementTokenVersion(userId, tx);
+      await this.activityLogService.log(
+        {
+          userId,
+          action: 'STAFF_LOGGED_OUT_ALL',
+          entity: 'User',
+          entityId: userId,
+          metadata: { requestId: context.requestId },
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        },
+        tx,
+      );
     });
   }
 
@@ -130,26 +150,64 @@ export class AuthService {
     );
   }
 
-  async revokeSession(userId: string, sessionId: string): Promise<void> {
-    const result = await this.refreshTokenRepository.revokeById(
-      userId,
-      sessionId,
-    );
-    if (!result.count) {
-      throw new UnauthorizedException('Phiên không tồn tại hoặc đã bị thu hồi');
-    }
+  async revokeSession(
+    userId: string,
+    sessionId: string,
+    context: AuthAuditContext = {},
+  ): Promise<void> {
+    await this.prisma.transaction(async (tx) => {
+      const result = await this.refreshTokenRepository.revokeById(
+        userId,
+        sessionId,
+        tx,
+      );
+      if (!result.count) {
+        throw new UnauthorizedException('Phiên không tồn tại hoặc đã bị thu hồi');
+      }
+      await this.activityLogService.log(
+        {
+          userId,
+          action: 'STAFF_SESSION_REVOKED',
+          entity: 'RefreshToken',
+          entityId: sessionId,
+          metadata: { requestId: context.requestId },
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        },
+        tx,
+      );
+    });
   }
 
   async revokeOtherSessions(
     userId: string,
     currentSessionId?: string,
+    context: AuthAuditContext = {},
   ): Promise<void> {
     if (!currentSessionId) {
       throw new UnauthorizedException(
         'Phiên legacy không hỗ trợ thao tác này',
       );
     }
-    await this.refreshTokenRepository.revokeOthers(userId, currentSessionId);
+    await this.prisma.transaction(async (tx) => {
+      const result = await this.refreshTokenRepository.revokeOthers(
+        userId,
+        currentSessionId,
+        tx,
+      );
+      await this.activityLogService.log(
+        {
+          userId,
+          action: 'STAFF_OTHER_SESSIONS_REVOKED',
+          entity: 'User',
+          entityId: userId,
+          metadata: { requestId: context.requestId, affectedCount: result.count },
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        },
+        tx,
+      );
+    });
   }
 
   private async issueTokens(

@@ -48,6 +48,7 @@ describe('AuthService characterization', () => {
       jwtService as unknown as JwtService,
       configService as unknown as ConfigService,
       prisma as unknown as PrismaService,
+      { log: jest.fn() } as never,
     );
 
     const result = await service.login({
@@ -126,6 +127,7 @@ describe('AuthService characterization', () => {
       jwtService as unknown as JwtService,
       configService as unknown as ConfigService,
       prisma as unknown as PrismaService,
+      { log: jest.fn() } as never,
     );
 
     await expect(
@@ -176,6 +178,7 @@ describe('AuthService characterization', () => {
       jwtService as unknown as JwtService,
       configService as unknown as ConfigService,
       prisma as unknown as PrismaService,
+      { log: jest.fn() } as never,
     );
 
     await expect(
@@ -195,12 +198,14 @@ describe('AuthService characterization', () => {
     const prisma = {
       transaction: jest.fn((callback) => callback(tx)),
     };
+    const activityLog = { log: jest.fn() };
     const service = new AuthService(
       usersRepository as unknown as UsersRepository,
       refreshTokenRepository as unknown as RefreshTokenRepository,
       {} as JwtService,
       {} as ConfigService,
       prisma as unknown as PrismaService,
+      activityLog as never,
     );
 
     await service.logout('user-1');
@@ -213,6 +218,7 @@ describe('AuthService characterization', () => {
       'user-1',
       tx,
     );
+    expect(activityLog.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'STAFF_LOGGED_OUT_ALL' }), tx);
   });
 
   it('marks only the JWT session as current when listing active sessions', async () => {
@@ -228,6 +234,7 @@ describe('AuthService characterization', () => {
       {} as JwtService,
       {} as ConfigService,
       {} as PrismaService,
+      { log: jest.fn() } as never,
     );
 
     await expect(
@@ -242,6 +249,7 @@ describe('AuthService characterization', () => {
   });
 
   it('scopes an individual session revocation to the authenticated user', async () => {
+    const tx = { marker: 'transaction' };
     const refreshTokenRepository = {
       revokeById: jest.fn().mockResolvedValue({ count: 1 }),
     };
@@ -250,7 +258,8 @@ describe('AuthService characterization', () => {
       refreshTokenRepository as unknown as RefreshTokenRepository,
       {} as JwtService,
       {} as ConfigService,
-      {} as PrismaService,
+      { transaction: jest.fn((callback) => callback(tx)) } as unknown as PrismaService,
+      { log: jest.fn() } as never,
     );
 
     await expect(
@@ -259,6 +268,7 @@ describe('AuthService characterization', () => {
     expect(refreshTokenRepository.revokeById).toHaveBeenCalledWith(
       'user-1',
       'session-2',
+      tx,
     );
   });
 
@@ -270,6 +280,7 @@ describe('AuthService characterization', () => {
       {} as JwtService,
       {} as ConfigService,
       {} as PrismaService,
+      { log: jest.fn() } as never,
     );
 
     await expect(service.revokeOtherSessions('user-1')).rejects.toThrow(
