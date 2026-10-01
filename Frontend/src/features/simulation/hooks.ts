@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { simulationApi } from "./api";
 import { ApiError } from "@/lib/api-client";
 import { toast } from "@/lib/toast-store";
-import { isLiveSnapshot, type CreateSimulationRunPayload, type SimulationSpeed } from "./types";
+import { isLiveSnapshot, type BenchmarkAlgorithm, type BenchmarkRequest, type CreateSimulationRunPayload, type SimulationSpeed } from "./types";
 
 const LIST_KEY = ["simulation-runs"] as const;
 const DETAIL_KEY = (id: string) => ["simulation-runs", id] as const;
@@ -20,6 +20,18 @@ export function useSimulationRuns() {
     queryKey: LIST_KEY,
     queryFn: simulationApi.list,
     refetchInterval: 10_000,
+  });
+}
+
+export function useRunBenchmark() {
+  return useMutation({
+    mutationFn: (payload: BenchmarkRequest & { algorithm: BenchmarkAlgorithm }) => simulationApi.runBenchmark(payload),
+  });
+}
+
+export function useCompareBenchmark() {
+  return useMutation({
+    mutationFn: (payload: BenchmarkRequest & { algorithms: BenchmarkAlgorithm[] }) => simulationApi.compareBenchmark(payload),
   });
 }
 

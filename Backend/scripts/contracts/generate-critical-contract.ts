@@ -8,6 +8,8 @@ import { createOpenApiDocument } from '../../src/openapi';
 const CRITICAL_PATHS = [
   '/api/v1/auth/sessions/current',
   '/activity-logs',
+  '/simulation/benchmark/run',
+  '/simulation/benchmark/compare',
 ] as const;
 
 async function main(): Promise<void> {

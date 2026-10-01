@@ -39,10 +39,141 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/simulation/benchmark/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run one deterministic in-memory routing algorithm benchmark */
+        post: operations["BenchmarkController_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/simulation/benchmark/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compare routing strategies on one immutable deterministic scenario */
+        post: operations["BenchmarkController_compare"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        BenchmarkCompareEnvelopeDto: {
+            success: boolean;
+            statusCode: number;
+            requestId: string;
+            timestamp: string;
+            data: {
+                scenario: {
+                    patientCount: number;
+                    /** @enum {string} */
+                    workflow: "INDEPENDENT" | "SEQUENTIAL" | "PARTIAL";
+                    seed: number;
+                    schemaVersion: number;
+                };
+                results: {
+                    /** @enum {string} */
+                    algorithm: "SYSTEM" | "SHORTEST_QUEUE" | "ROUND_ROBIN" | "RANDOM" | "LEAST_UTILISED";
+                    algorithmLabel: string;
+                    seed: number;
+                    /** @enum {string} */
+                    workflow: "INDEPENDENT" | "SEQUENTIAL" | "PARTIAL";
+                    patientCount: number;
+                    simulationTimeMs: number;
+                    metrics: {
+                        averageWaitingTimeMs: number;
+                        p95WaitingTimeMs: number;
+                        maxWaitingTimeMs: number;
+                        averageLengthOfStayMs: number;
+                        throughputPerSimHour: number;
+                        averageRoomUtilizationPct: number;
+                        completedPatientCount: number;
+                    };
+                    rooms: {
+                        roomId: string;
+                        serviceId: string;
+                        patientsServed: number;
+                        busyTimeMs: number;
+                        utilizationPct: number;
+                    }[];
+                    events: {
+                        simTimeMs: number;
+                        /** @enum {string} */
+                        type: "ARRIVED" | "STEP_READY" | "QUEUED" | "SERVICE_STARTED" | "SERVICE_COMPLETED" | "PATIENT_COMPLETED";
+                        patientId: string;
+                        serviceId?: string;
+                        roomId?: string;
+                    }[];
+                }[];
+            };
+        };
+        BenchmarkRunEnvelopeDto: {
+            success: boolean;
+            statusCode: number;
+            requestId: string;
+            timestamp: string;
+            data: {
+                /** @enum {string} */
+                algorithm: "SYSTEM" | "SHORTEST_QUEUE" | "ROUND_ROBIN" | "RANDOM" | "LEAST_UTILISED";
+                algorithmLabel: string;
+                seed: number;
+                /** @enum {string} */
+                workflow: "INDEPENDENT" | "SEQUENTIAL" | "PARTIAL";
+                patientCount: number;
+                simulationTimeMs: number;
+                metrics: {
+                    averageWaitingTimeMs: number;
+                    p95WaitingTimeMs: number;
+                    maxWaitingTimeMs: number;
+                    averageLengthOfStayMs: number;
+                    throughputPerSimHour: number;
+                    averageRoomUtilizationPct: number;
+                    completedPatientCount: number;
+                };
+                rooms: {
+                    roomId: string;
+                    serviceId: string;
+                    patientsServed: number;
+                    busyTimeMs: number;
+                    utilizationPct: number;
+                }[];
+                events: {
+                    simTimeMs: number;
+                    /** @enum {string} */
+                    type: "ARRIVED" | "STEP_READY" | "QUEUED" | "SERVICE_STARTED" | "SERVICE_COMPLETED" | "PATIENT_COMPLETED";
+                    patientId: string;
+                    serviceId?: string;
+                    roomId?: string;
+                }[];
+            };
+        };
+        CompareBenchmarkDto: {
+            patientCount: number;
+            /** @enum {string} */
+            workflow: "INDEPENDENT" | "SEQUENTIAL" | "PARTIAL";
+            /** @default 20261002 */
+            seed: number;
+            algorithms: ("SYSTEM" | "SHORTEST_QUEUE" | "ROUND_ROBIN" | "RANDOM" | "LEAST_UTILISED")[];
+        };
         PaginatedActivityLogEnvelopeDto: {
             success: boolean;
             statusCode: number;
@@ -64,6 +195,15 @@ export interface components {
                 page: number;
                 limit: number;
             };
+        };
+        RunBenchmarkDto: {
+            patientCount: number;
+            /** @enum {string} */
+            workflow: "INDEPENDENT" | "SEQUENTIAL" | "PARTIAL";
+            /** @default 20261002 */
+            seed: number;
+            /** @enum {string} */
+            algorithm: "SYSTEM" | "SHORTEST_QUEUE" | "ROUND_ROBIN" | "RANDOM" | "LEAST_UTILISED";
         };
         StaffCurrentSessionEnvelopeDto: {
             success: boolean;
@@ -164,6 +304,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedActivityLogEnvelopeDto"];
+                };
+            };
+        };
+    };
+    BenchmarkController_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunBenchmarkDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenchmarkRunEnvelopeDto"];
+                };
+            };
+        };
+    };
+    BenchmarkController_compare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompareBenchmarkDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenchmarkCompareEnvelopeDto"];
                 };
             };
         };

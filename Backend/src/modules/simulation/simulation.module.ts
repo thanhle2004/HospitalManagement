@@ -20,6 +20,8 @@ import { SimulationGateway } from './orchestrator/simulation.gateway';
 import { SimulationController } from './simulation.controller';
 import { SimulationRoomLeasesRepository } from './repositories/simulation-room-leases.repository';
 import { SimulationEnabledGuard } from './simulation-enabled.guard';
+import { BenchmarkController } from './benchmark/benchmark.controller';
+import { BenchmarkService } from './benchmark/benchmark.service';
 
 // [Simulator Phase 0-4] Phase 4 thêm: metrics/assertions (DB-touching qua
 // SimulationAssertionsRunner — logic THUẦN của assertions nằm ở
@@ -40,7 +42,7 @@ import { SimulationEnabledGuard } from './simulation-enabled.guard';
     DoctorModule, // DoctorService — DoctorSimulator giả lập khám bệnh
     RoutingModule, // [Phase 4] RoutingDecisionsRepository — A10
   ],
-  controllers: [SimulationController],
+  controllers: [SimulationController, BenchmarkController],
   providers: [
     SimulationRunsRepository,
     SimulationFixturesService,
@@ -52,6 +54,7 @@ import { SimulationEnabledGuard } from './simulation-enabled.guard';
     SimulationOrchestratorService, // [Phase 4]
     SimulationRoomLeasesRepository,
     SimulationEnabledGuard,
+    BenchmarkService,
   ],
   exports: [
     SimulationRunsRepository,

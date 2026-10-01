@@ -1,5 +1,6 @@
 // Khớp với Backend/src/modules/simulation/{metrics,orchestrator}/*.ts
 // (Phase 4-6). Xem docs/simulator-architecture.md nếu cần đối chiếu ngược.
+import type { components } from "@/generated/critical-staff-contract";
 
 export type SimulationRunStatus =
   | "PENDING"
@@ -191,3 +192,17 @@ export interface SimulationSocketFinished {
   runId: string;
   status: SimulationRunStatus;
 }
+
+export type BenchmarkRunResult = components["schemas"]["BenchmarkRunEnvelopeDto"]["data"];
+export type BenchmarkCompareResult = components["schemas"]["BenchmarkCompareEnvelopeDto"]["data"];
+export type BenchmarkAlgorithm = BenchmarkRunResult["algorithm"];
+export type BenchmarkWorkflow = BenchmarkRunResult["workflow"];
+
+export interface BenchmarkRequest {
+  patientCount: number;
+  workflow: BenchmarkWorkflow;
+  seed: number;
+}
+
+export type BenchmarkMetrics = BenchmarkRunResult["metrics"];
+export type BenchmarkEvent = BenchmarkRunResult["events"][number];

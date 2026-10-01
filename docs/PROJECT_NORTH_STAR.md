@@ -1,7 +1,7 @@
 # Hospital Management — Project North Star
 
 Ngày checkpoint: **2026-10-01**  
-Baseline đánh giá: **hoàn tất Slice 1H; foundation đã đóng trên nền 1F/1G**
+Baseline đánh giá: **Foundation closed tại Slice 1H; owner-approved Simulation Benchmark exception hoàn tất, roadmap trở lại 2A**
 Trạng thái: **tài liệu canonical cấp dự án; phải đọc trước mọi slice mới**
 
 ## 1. System objective
@@ -62,7 +62,7 @@ Role mới ngoài ADMIN/DOCTOR hiện đã tồn tại trong schema nhưng mặc
 | Pharmacy | Medication, Prescription/Item, Dispensation/Item — chưa có |
 | Revenue | Invoice/Item, Payment, Refund — chưa có |
 | Platform | ActivityLog, notification/preference, realtime, reports/export |
-| Simulation | Synthetic fixtures/run/event/metric/violation; dùng làm regression harness, không là production clinical source |
+| Simulation | Production-integrated workflow simulator dùng làm regression harness; pure in-memory algorithm benchmark dùng cho thesis experiment/demo; không là production clinical source |
 
 Logical ownership được giữ trong một MySQL database ở giai đoạn hiện tại. Module không được dùng repository nội bộ của domain khác làm API công khai mới.
 
@@ -187,6 +187,7 @@ Do đó: role không đồng nghĩa permission; permission không tự quyết �
 | Notifications / realtime | PARTIAL | Socket invalidation backend có; persistent notification/read/preference và frontend integration chưa có |
 | Audit | PARTIAL | Typed action catalog, bounded metadata denylist, auth/foundation mutation audit, patient/staff sensitive-read hook, effective-role actor context, query/retention contract có; immutable/tamper-evident storage, archive job và future domain coverage còn thiếu |
 | Contract/regression harness | FOUNDATION COMPLETE | Critical Staff OpenAPI snapshot + generated frontend types, drift gate, role×endpoint/API matrix, browser Staff paths và isolated deterministic system-test boundary đã có; migration toàn bộ handwritten type không thuộc 1H |
+| Simulation benchmark | COMPLETE (owner-approved exception) | Deterministic in-memory single/compare benchmark dùng trực tiếp production room-selection strategy implementations; không mô phỏng toàn bộ routing pipeline và không thay production routing configuration |
 | Reporting / dashboard | PARTIAL | Admin dashboard cơ bản; metric definition/aggregate/filter/export chưa đủ |
 | Device integration | PARTIAL | Device auth/manage/QR check-in có; attestation/offline/replay hardening chưa có |
 | Patient application integration | PARTIAL | Web patient login/profile/service/Visit/QR có; external mobile source không nằm trong repo; clinical/appointment/finance portal chưa có |
@@ -228,6 +229,7 @@ Approved thesis scope chỉ được xem là **feature-complete** khi đồng th
 | Slice 1F-B | Self-profile/password/session UI; password hash + token-version increment + session revoke + audit cùng transaction; session mutations có audit redact | Role history chưa có; login/sensitive-read audit và audit policy platform để 1G; session `lastUsedAt`/device normalization còn nợ |
 | Slice 1G | Audit action/resource catalog, metadata denylist, auth events, sensitive patient/staff read policy, effective-role context, deterministic query và retention contract | Không có automatic archive/delete, tamper evidence/SIEM; queue audit atomicity giữ nguyên vì routing core frozen; future domain action chỉ thêm khi domain tồn tại |
 | Slice 1H | Critical Staff OpenAPI/generated-type PoC và drift gate; role×endpoint/API regression matrix; browser ADMIN/DOCTOR/safe-landing/deny paths; isolated deterministic system-test runner | Frontend types ngoài critical vertical còn handwritten; browser harness dùng deterministic API mocks; local full system test cần database `_e2e` riêng; mở rộng theo business slice thay vì platform rewrite |
+| Simulation Benchmark exception | Pure in-memory thesis demo cho 3 dependency templates và 5 shared routing strategies; generated API contract và browser UI | Candidate projection/lifecycle là benchmark semantics, không phải full production routing equivalence; không persist result |
 
 Không có TODO database migration đang failed tại local; 11 migration đã được áp dụng. Production migration sign-off vẫn mở.
 
@@ -272,6 +274,8 @@ Slice 1F-A (complete)
 ```
 
 Sau Slice 1H, không tự động thêm platform/foundation slice mới trước business roadmap. Foundation work chỉ được chen trước business slice kế tiếp khi **đồng thời** có concrete blocker được chứng minh từ implementation hiện tại, blocker không thể xử lý an toàn bên trong business slice, impact/dependency được document và owner phê duyệt. Modernization, cleanup hoặc infrastructure perfection tự thân không phải lý do trì hoãn core business workflow.
+
+Simulation Benchmark hoàn tất ngày 2026-10-02 là exception tạm thời đã được owner phê duyệt cho thesis experiment/demo. Exception không mở lại Foundation: Production Workflow Simulator vẫn là regression harness, Pure Algorithm Benchmark là path in-memory riêng, routing core/default/candidate construction/transaction/state không đổi. Roadmap sau exception quay lại **Slice 2A Appointment Foundation**.
 
 ### Core business workflow
 

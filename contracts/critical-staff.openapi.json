@@ -143,6 +143,80 @@
           }
         ]
       }
+    },
+    "/simulation/benchmark/run": {
+      "post": {
+        "operationId": "BenchmarkController_run",
+        "summary": "Run one deterministic in-memory routing algorithm benchmark",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunBenchmarkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkRunEnvelopeDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Simulation Benchmark"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/simulation/benchmark/compare": {
+      "post": {
+        "operationId": "BenchmarkController_compare",
+        "summary": "Compare routing strategies on one immutable deterministic scenario",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompareBenchmarkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkCompareEnvelopeDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Simulation Benchmark"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
@@ -162,6 +236,438 @@
       }
     },
     "schemas": {
+      "BenchmarkCompareEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "scenario": {
+                "type": "object",
+                "properties": {
+                  "patientCount": {
+                    "type": "integer"
+                  },
+                  "workflow": {
+                    "type": "string",
+                    "enum": [
+                      "INDEPENDENT",
+                      "SEQUENTIAL",
+                      "PARTIAL"
+                    ]
+                  },
+                  "seed": {
+                    "type": "integer"
+                  },
+                  "schemaVersion": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "patientCount",
+                  "workflow",
+                  "seed",
+                  "schemaVersion"
+                ]
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "algorithm": {
+                      "type": "string",
+                      "enum": [
+                        "SYSTEM",
+                        "SHORTEST_QUEUE",
+                        "ROUND_ROBIN",
+                        "RANDOM",
+                        "LEAST_UTILISED"
+                      ]
+                    },
+                    "algorithmLabel": {
+                      "type": "string"
+                    },
+                    "seed": {
+                      "type": "integer"
+                    },
+                    "workflow": {
+                      "type": "string",
+                      "enum": [
+                        "INDEPENDENT",
+                        "SEQUENTIAL",
+                        "PARTIAL"
+                      ]
+                    },
+                    "patientCount": {
+                      "type": "integer"
+                    },
+                    "simulationTimeMs": {
+                      "type": "number"
+                    },
+                    "metrics": {
+                      "type": "object",
+                      "properties": {
+                        "averageWaitingTimeMs": {
+                          "type": "number"
+                        },
+                        "p95WaitingTimeMs": {
+                          "type": "number"
+                        },
+                        "maxWaitingTimeMs": {
+                          "type": "number"
+                        },
+                        "averageLengthOfStayMs": {
+                          "type": "number"
+                        },
+                        "throughputPerSimHour": {
+                          "type": "number"
+                        },
+                        "averageRoomUtilizationPct": {
+                          "type": "number"
+                        },
+                        "completedPatientCount": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "averageWaitingTimeMs",
+                        "p95WaitingTimeMs",
+                        "maxWaitingTimeMs",
+                        "averageLengthOfStayMs",
+                        "throughputPerSimHour",
+                        "averageRoomUtilizationPct",
+                        "completedPatientCount"
+                      ]
+                    },
+                    "rooms": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "roomId": {
+                            "type": "string"
+                          },
+                          "serviceId": {
+                            "type": "string"
+                          },
+                          "patientsServed": {
+                            "type": "integer"
+                          },
+                          "busyTimeMs": {
+                            "type": "number"
+                          },
+                          "utilizationPct": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "roomId",
+                          "serviceId",
+                          "patientsServed",
+                          "busyTimeMs",
+                          "utilizationPct"
+                        ]
+                      }
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "simTimeMs": {
+                            "type": "number"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "ARRIVED",
+                              "STEP_READY",
+                              "QUEUED",
+                              "SERVICE_STARTED",
+                              "SERVICE_COMPLETED",
+                              "PATIENT_COMPLETED"
+                            ]
+                          },
+                          "patientId": {
+                            "type": "string"
+                          },
+                          "serviceId": {
+                            "type": "string"
+                          },
+                          "roomId": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "simTimeMs",
+                          "type",
+                          "patientId"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "algorithm",
+                    "algorithmLabel",
+                    "seed",
+                    "workflow",
+                    "patientCount",
+                    "simulationTimeMs",
+                    "metrics",
+                    "rooms",
+                    "events"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "scenario",
+              "results"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "statusCode",
+          "requestId",
+          "timestamp",
+          "data"
+        ]
+      },
+      "BenchmarkRunEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "algorithm": {
+                "type": "string",
+                "enum": [
+                  "SYSTEM",
+                  "SHORTEST_QUEUE",
+                  "ROUND_ROBIN",
+                  "RANDOM",
+                  "LEAST_UTILISED"
+                ]
+              },
+              "algorithmLabel": {
+                "type": "string"
+              },
+              "seed": {
+                "type": "integer"
+              },
+              "workflow": {
+                "type": "string",
+                "enum": [
+                  "INDEPENDENT",
+                  "SEQUENTIAL",
+                  "PARTIAL"
+                ]
+              },
+              "patientCount": {
+                "type": "integer"
+              },
+              "simulationTimeMs": {
+                "type": "number"
+              },
+              "metrics": {
+                "type": "object",
+                "properties": {
+                  "averageWaitingTimeMs": {
+                    "type": "number"
+                  },
+                  "p95WaitingTimeMs": {
+                    "type": "number"
+                  },
+                  "maxWaitingTimeMs": {
+                    "type": "number"
+                  },
+                  "averageLengthOfStayMs": {
+                    "type": "number"
+                  },
+                  "throughputPerSimHour": {
+                    "type": "number"
+                  },
+                  "averageRoomUtilizationPct": {
+                    "type": "number"
+                  },
+                  "completedPatientCount": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "averageWaitingTimeMs",
+                  "p95WaitingTimeMs",
+                  "maxWaitingTimeMs",
+                  "averageLengthOfStayMs",
+                  "throughputPerSimHour",
+                  "averageRoomUtilizationPct",
+                  "completedPatientCount"
+                ]
+              },
+              "rooms": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "roomId": {
+                      "type": "string"
+                    },
+                    "serviceId": {
+                      "type": "string"
+                    },
+                    "patientsServed": {
+                      "type": "integer"
+                    },
+                    "busyTimeMs": {
+                      "type": "number"
+                    },
+                    "utilizationPct": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "roomId",
+                    "serviceId",
+                    "patientsServed",
+                    "busyTimeMs",
+                    "utilizationPct"
+                  ]
+                }
+              },
+              "events": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "simTimeMs": {
+                      "type": "number"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "ARRIVED",
+                        "STEP_READY",
+                        "QUEUED",
+                        "SERVICE_STARTED",
+                        "SERVICE_COMPLETED",
+                        "PATIENT_COMPLETED"
+                      ]
+                    },
+                    "patientId": {
+                      "type": "string"
+                    },
+                    "serviceId": {
+                      "type": "string"
+                    },
+                    "roomId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "simTimeMs",
+                    "type",
+                    "patientId"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "algorithm",
+              "algorithmLabel",
+              "seed",
+              "workflow",
+              "patientCount",
+              "simulationTimeMs",
+              "metrics",
+              "rooms",
+              "events"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "statusCode",
+          "requestId",
+          "timestamp",
+          "data"
+        ]
+      },
+      "CompareBenchmarkDto": {
+        "type": "object",
+        "properties": {
+          "patientCount": {
+            "type": "integer",
+            "minimum": 1,
+            "exclusiveMinimum": false,
+            "maximum": 1000,
+            "exclusiveMaximum": false
+          },
+          "workflow": {
+            "type": "string",
+            "enum": [
+              "INDEPENDENT",
+              "SEQUENTIAL",
+              "PARTIAL"
+            ]
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 2147483647,
+            "exclusiveMaximum": false,
+            "default": 20261002
+          },
+          "algorithms": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "enum": [
+                "SYSTEM",
+                "SHORTEST_QUEUE",
+                "ROUND_ROBIN",
+                "RANDOM",
+                "LEAST_UTILISED"
+              ]
+            }
+          }
+        },
+        "required": [
+          "patientCount",
+          "workflow",
+          "algorithms"
+        ]
+      },
       "PaginatedActivityLogEnvelopeDto": {
         "type": "object",
         "properties": {
@@ -251,6 +757,49 @@
           "requestId",
           "timestamp",
           "data"
+        ]
+      },
+      "RunBenchmarkDto": {
+        "type": "object",
+        "properties": {
+          "patientCount": {
+            "type": "integer",
+            "minimum": 1,
+            "exclusiveMinimum": false,
+            "maximum": 1000,
+            "exclusiveMaximum": false
+          },
+          "workflow": {
+            "type": "string",
+            "enum": [
+              "INDEPENDENT",
+              "SEQUENTIAL",
+              "PARTIAL"
+            ]
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "maximum": 2147483647,
+            "exclusiveMaximum": false,
+            "default": 20261002
+          },
+          "algorithm": {
+            "type": "string",
+            "enum": [
+              "SYSTEM",
+              "SHORTEST_QUEUE",
+              "ROUND_ROBIN",
+              "RANDOM",
+              "LEAST_UTILISED"
+            ]
+          }
+        },
+        "required": [
+          "patientCount",
+          "workflow",
+          "algorithm"
         ]
       },
       "StaffCurrentSessionEnvelopeDto": {

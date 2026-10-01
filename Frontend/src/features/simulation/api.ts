@@ -6,9 +6,23 @@ import type {
   SimulationRunRecord,
   SimulationSpeed,
   SimulationViolation,
+  BenchmarkAlgorithm,
+  BenchmarkCompareResult,
+  BenchmarkRequest,
+  BenchmarkRunResult,
 } from "./types";
 
 export const simulationApi = {
+  runBenchmark: (payload: BenchmarkRequest & { algorithm: BenchmarkAlgorithm }) =>
+    apiFetch<BenchmarkRunResult>("/simulation/benchmark/run", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  compareBenchmark: (payload: BenchmarkRequest & { algorithms: BenchmarkAlgorithm[] }) =>
+    apiFetch<BenchmarkCompareResult>("/simulation/benchmark/compare", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   list: () => apiFetch<SimulationRunRecord[]>("/admin/simulation/runs"),
   detail: (id: string) => apiFetch<SimulationRunDetail>(`/admin/simulation/runs/${id}`),
   violations: (id: string) =>
