@@ -25,7 +25,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { TokenResponseDto } from './dto/token-response.dto';
 import { StaffSessionResponseDto } from './dto/staff-session-response.dto';
-import { StaffCurrentSessionDto } from './dto/staff-current-session.dto';
+import { StaffCurrentSessionEnvelopeDto } from './dto/staff-current-session.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { RbacService } from '../rbac/rbac.service';
 import { getRequestId, RequestWithContext } from '../../common/http/request-context';
@@ -63,7 +63,7 @@ export class AuthSessionsController {
   @Get('current')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Đọc Staff hiện tại sau khi token đã đối chiếu DB' })
-  @ApiOkResponse({ type: StaffCurrentSessionDto })
+  @ApiOkResponse({ type: StaffCurrentSessionEnvelopeDto })
   async current(@CurrentUser() user: JwtPayload) {
     const [staff, access] = await Promise.all([
       this.usersService.findById(user.sub),

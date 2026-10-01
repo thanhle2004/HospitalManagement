@@ -17,6 +17,7 @@ Phạm vi: `Backend/` và `Frontend/` trong workspace hiện tại. Giai đoạn
 | [slice-1f-a-identity-rbac-convergence.md](slice-1f-a-identity-rbac-convergence.md) | Effective role/permission contract và workspace navigation an toàn, giữ compatibility `users.role` |
 | [slice-1f-b-staff-self-service.md](slice-1f-b-staff-self-service.md) | Staff self-profile/password/session UI, atomic credential revocation và audit redact |
 | [slice-1g-audit-policy-platform.md](slice-1g-audit-policy-platform.md) | Audit action/metadata policy, auth events, sensitive reads, query và retention contract |
+| [slice-1h-contract-e2e-harness.md](slice-1h-contract-e2e-harness.md) | Critical OpenAPI/generated-type drift gate, Staff authorization/API matrix, browser E2E và isolated fixture boundary; FOUNDATION CLOSED |
 | [legacy-system-audit.md](legacy-system-audit.md) | Stack, cấu trúc, entry point, auth, triển khai, tích hợp, technical debt và kết luận khảo sát |
 | [business-modules.md](business-modules.md) | Inventory module, vai trò, luồng, validation, trạng thái, API, bảng, quyền và trường hợp đặc biệt |
 | [database-inventory.md](database-inventory.md) | Inventory 24 bảng MySQL, khóa/index, dữ liệu nhạy cảm, truy vấn và rủi ro dữ liệu |

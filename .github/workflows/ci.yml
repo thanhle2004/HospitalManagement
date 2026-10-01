@@ -35,7 +35,7 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: ci-only-root-password
-          MYSQL_DATABASE: hospital_management_ci
+          MYSQL_DATABASE: hospital_management_test
         ports:
           - 3306:3306
         options: >-
@@ -46,7 +46,8 @@ jobs:
     env:
       NODE_ENV: test
       PORT: 3000
-      DATABASE_URL: mysql://root:ci-only-root-password@127.0.0.1:3306/hospital_management_ci
+      DATABASE_URL: mysql://root:ci-only-root-password@127.0.0.1:3306/hospital_management_test
+      E2E_DATABASE_URL: mysql://root:ci-only-root-password@127.0.0.1:3306/hospital_management_test
       CORS_ORIGINS: http://localhost:3001
       SWAGGER_ENABLED: 'false'
       JWT_ACCESS_SECRET: ci-only-staff-access-secret
@@ -71,11 +72,13 @@ jobs:
       - run: npm run prisma:validate
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm run contract:check
       - run: npm run test:ci
       - run: npm run build
       - run: npm run prisma:migrate:deploy
       - run: npm run db:drift:check
       - run: npm run db:reconcile
+      - run: npm run test:system:isolated
       - name: Runtime health and request-id smoke test
         shell: bash
         run: |
@@ -124,6 +127,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
       - name: Production dependency audit inventory
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=high

@@ -1,13 +1,10 @@
-export type StaffRole =
-  | "ADMIN"
-  | "DOCTOR"
-  | "NURSE"
-  | "RECEPTIONIST"
-  | "LAB_TECHNICIAN"
-  | "PHARMACIST"
-  | "CASHIER";
-export type StaffWorkspace = "ADMIN" | "DOCTOR";
-export type StaffStatus = "ACTIVE" | "INACTIVE" | "LOCKED";
+import type { components } from "@/generated/critical-staff-contract";
+
+type GeneratedStaffSession = components["schemas"]["StaffCurrentSessionEnvelopeDto"]["data"];
+
+export type StaffRole = GeneratedStaffSession["role"];
+export type StaffWorkspace = NonNullable<GeneratedStaffSession["workspace"]>;
+export type StaffStatus = GeneratedStaffSession["status"];
 export type Gender = "MALE" | "FEMALE" | "OTHER";
 
 export interface StaffProfile {

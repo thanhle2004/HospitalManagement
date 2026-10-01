@@ -1,4 +1,8 @@
-export interface ActivityLogItem {
+import type { components } from "@/generated/critical-staff-contract";
+
+type GeneratedActivityLog = components["schemas"]["PaginatedActivityLogEnvelopeDto"]["data"]["items"][number];
+
+export interface ActivityLogItem extends Omit<GeneratedActivityLog, "createdAt"> {
   id: string;
   userId: string | null;
   action: string;

@@ -13,3 +13,15 @@ export const StaffCurrentSessionSchema = UserResponseSchema.extend({
 export class StaffCurrentSessionDto extends createZodDto(
   StaffCurrentSessionSchema,
 ) {}
+
+export const StaffCurrentSessionEnvelopeSchema = z.object({
+  success: z.literal(true),
+  statusCode: z.number().int(),
+  requestId: z.string(),
+  timestamp: z.string(),
+  data: StaffCurrentSessionSchema,
+});
+
+export class StaffCurrentSessionEnvelopeDto extends createZodDto(
+  StaffCurrentSessionEnvelopeSchema,
+) {}

@@ -1,14 +1,14 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
-import { patchNestJsSwagger } from 'nestjs-zod';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { RequestLoggingInterceptor } from './common/interceptors/request-logging.interceptor';
 import { ConfiguredIoAdapter } from './common/websocket/configured-io.adapter';
+import { createOpenApiDocument } from './openapi';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -34,21 +34,8 @@ async function bootstrap() {
   });
   app.useWebSocketAdapter(new ConfiguredIoAdapter(app, corsOrigins));
 
-  // patchNestJsSwagger() PHẢI gọi trước SwaggerModule.createDocument —
-  // đây là chỗ nestjs-zod "vá" @nestjs/swagger để nó hiểu zod schema
-  // (tự sinh OpenAPI schema từ createZodDto, không cần viết @ApiProperty thủ công)
-  patchNestJsSwagger();
-
   if (swaggerEnabled) {
-    const swaggerConfig = new DocumentBuilder()
-      .setTitle('HospitalManagement API')
-      .setDescription(
-        'API cho hệ thống tối ưu luồng khám chữa bệnh (patient flow / queue routing)',
-      )
-      .setVersion('0.1.0')
-      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
-      .build();
-    const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+    const swaggerDocument = createOpenApiDocument(app);
     SwaggerModule.setup('docs', app, swaggerDocument);
   }
 

@@ -1,0 +1,414 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/auth/sessions/current": {
+      "get": {
+        "operationId": "AuthSessionsController_current",
+        "summary": "Đọc Staff hiện tại sau khi token đã đối chiếu DB",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffCurrentSessionEnvelopeDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Auth Sessions v1"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AuthSessionsController_logout",
+        "summary": "Thu hồi toàn bộ phiên Staff và tăng token version",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Auth Sessions v1"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/activity-logs": {
+      "get": {
+        "operationId": "ActivityLogController_findAll",
+        "summary": "[Admin] Xem nhật ký hoạt động — lọc theo entity/entityId/userId",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "example": 20,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "entityId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entity",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedActivityLogEnvelopeDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Activity Log"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "HospitalManagement Critical Staff Contract",
+    "description": "API cho hệ thống tối ưu luồng khám chữa bệnh",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "PaginatedActivityLogEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "userId": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "action": {
+                      "type": "string"
+                    },
+                    "entity": {
+                      "type": "string"
+                    },
+                    "entityId": {
+                      "type": "string"
+                    },
+                    "ipAddress": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "userAgent": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "metadata": {
+                      "nullable": true
+                    },
+                    "createdAt": {}
+                  },
+                  "required": [
+                    "id",
+                    "userId",
+                    "action",
+                    "entity",
+                    "entityId",
+                    "ipAddress",
+                    "userAgent",
+                    "metadata",
+                    "createdAt"
+                  ]
+                }
+              },
+              "total": {
+                "type": "number"
+              },
+              "page": {
+                "type": "number"
+              },
+              "limit": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "items",
+              "total",
+              "page",
+              "limit"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "statusCode",
+          "requestId",
+          "timestamp",
+          "data"
+        ]
+      },
+      "StaffCurrentSessionEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "ADMIN",
+                  "DOCTOR",
+                  "NURSE",
+                  "RECEPTIONIST",
+                  "LAB_TECHNICIAN",
+                  "PHARMACIST",
+                  "CASHIER"
+                ],
+                "x-enumNames": [
+                  "ADMIN",
+                  "DOCTOR",
+                  "NURSE",
+                  "RECEPTIONIST",
+                  "LAB_TECHNICIAN",
+                  "PHARMACIST",
+                  "CASHIER"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ACTIVE",
+                  "INACTIVE",
+                  "LOCKED"
+                ],
+                "x-enumNames": [
+                  "ACTIVE",
+                  "INACTIVE",
+                  "LOCKED"
+                ]
+              },
+              "lastLoginAt": {
+                "nullable": true
+              },
+              "createdAt": {},
+              "profile": {
+                "type": "object",
+                "properties": {
+                  "fullName": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "avatarUrl": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "gender": {
+                    "type": "string",
+                    "enum": [
+                      "MALE",
+                      "FEMALE",
+                      "OTHER"
+                    ],
+                    "x-enumNames": [
+                      "MALE",
+                      "FEMALE",
+                      "OTHER"
+                    ],
+                    "nullable": true
+                  },
+                  "birthday": {
+                    "nullable": true
+                  },
+                  "address": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "fullName",
+                  "phone",
+                  "avatarUrl",
+                  "gender",
+                  "birthday",
+                  "address",
+                  "description"
+                ],
+                "nullable": true
+              },
+              "effectiveRoles": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "effectivePermissions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "workspace": {
+                "type": "string",
+                "enum": [
+                  "ADMIN",
+                  "DOCTOR"
+                ],
+                "nullable": true
+              }
+            },
+            "required": [
+              "id",
+              "email",
+              "role",
+              "status",
+              "lastLoginAt",
+              "createdAt",
+              "profile",
+              "effectiveRoles",
+              "effectivePermissions",
+              "workspace"
+            ]
+          }
+        },
+        "required": [
+          "success",
+          "statusCode",
+          "requestId",
+          "timestamp",
+          "data"
+        ]
+      }
+    }
+  }
+}

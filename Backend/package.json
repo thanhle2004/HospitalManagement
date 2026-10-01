@@ -30,8 +30,11 @@
     "test": "jest",
     "test:ci": "jest --runInBand",
     "test:system": "ts-node --transpile-only scripts/system-test.ts",
+    "test:system:isolated": "ts-node --transpile-only scripts/e2e/run-isolated-system-test.ts",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage"
+    "test:cov": "jest --coverage",
+    "contract:generate": "ts-node --transpile-only scripts/contracts/generate-critical-contract.ts && openapi-typescript ../contracts/critical-staff.openapi.json -o ../Frontend/src/generated/critical-staff-contract.ts",
+    "contract:check": "npm run contract:generate && git diff --exit-code -- ../contracts/critical-staff.openapi.json ../Frontend/src/generated/critical-staff-contract.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",
@@ -63,16 +66,20 @@
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
     "@nestjs/schematics": "^10.2.3",
+    "@nestjs/testing": "^10.4.22",
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.17.9",
     "@types/passport-jwt": "^4.0.1",
+    "@types/supertest": "^7.2.1",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^8.57.1",
     "jest": "^29.7.0",
+    "openapi-typescript": "^7.13.0",
     "prisma": "^5.22.0",
+    "supertest": "^7.3.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"

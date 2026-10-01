@@ -26,3 +26,15 @@ export const PaginatedActivityLogResponseSchema = z.object({
 export class PaginatedActivityLogResponseDto extends createZodDto(
   PaginatedActivityLogResponseSchema,
 ) {}
+
+export const PaginatedActivityLogEnvelopeSchema = z.object({
+  success: z.literal(true),
+  statusCode: z.number().int(),
+  requestId: z.string(),
+  timestamp: z.string(),
+  data: PaginatedActivityLogResponseSchema,
+});
+
+export class PaginatedActivityLogEnvelopeDto extends createZodDto(
+  PaginatedActivityLogEnvelopeSchema,
+) {}
