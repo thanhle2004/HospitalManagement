@@ -4,6 +4,9 @@ import { ActivityLogsRepository } from './activity-logs.repository';
 import { ActivityLogsMapper } from './activity-logs.mapper';
 import { FindActivityLogsQueryDto } from './dto/find-activity-logs-query.dto';
 import { PaginatedActivityLogResponseDto } from './dto/activity-log-response.dto';
+import { PrismaService } from '../../prisma/prisma.service';
+
+type Db = PrismaService | Prisma.TransactionClient;
 
 export interface LogActivityParams {
   userId?: string;
@@ -23,7 +26,7 @@ export class ActivityLogService {
    * Helper dùng chung — bất kỳ module nào cần ghi audit chỉ cần import
    * ActivityLogModule rồi gọi log(...), không cần biết chi tiết Prisma bên dưới.
    */
-  async log(params: LogActivityParams): Promise<void> {
+  async log(params: LogActivityParams, db?: Db): Promise<void> {
     await this.activityLogsRepository.create({
       user: params.userId ? { connect: { id: params.userId } } : undefined,
       action: params.action,
@@ -32,7 +35,7 @@ export class ActivityLogService {
       metadata: params.metadata as Prisma.InputJsonValue | undefined,
       ipAddress: params.ipAddress,
       userAgent: params.userAgent,
-    });
+    }, db);
   }
 
   async findAll(

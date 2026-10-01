@@ -33,6 +33,8 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { SecurityModule } from './common/security/security.module';
+import { RbacModule } from './modules/rbac/rbac.module';
+import { PermissionsGuard } from './modules/rbac/guards/permissions.guard';
 
 @Module({
   imports: [
@@ -52,6 +54,7 @@ import { SecurityModule } from './common/security/security.module';
     ScheduleModule.forRoot(),
     PrismaModule,
     SecurityModule,
+    RbacModule,
     AuthModule,
     UsersModule,
     PatientsModule,
@@ -85,6 +88,7 @@ import { SecurityModule } from './common/security/security.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     // Chạy sau JwtAuthGuard — kiểm tra role nếu route có @Roles(...).
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
 export class AppModule implements NestModule {
