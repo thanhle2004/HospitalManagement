@@ -1,17 +1,16 @@
 import { Controller, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import { DoctorService } from './doctor.service';
 import { DoctorQueueEntryDto } from './dto/doctor-queue-entry.dto';
 import { ExamActionResponseDto } from './dto/exam-action-response.dto';
 import { DoctorAssignmentResponseDto } from '../doctor-assignments/dto/doctor-assignment-response.dto';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 @ApiTags('Doctor')
 @ApiBearerAuth()
-@Roles(UserRole.DOCTOR) // toàn bộ controller này chỉ dành cho Doctor
+@Permissions('doctor.workflow')
 @Controller('doctor')
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}

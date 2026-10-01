@@ -14,7 +14,6 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import { DevicesService } from './devices.service';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
@@ -24,11 +23,11 @@ import {
   DeviceResponseDto,
   DeviceWithSecretResponseDto,
 } from './dto/device-response.dto';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 
 @ApiTags('Devices')
 @ApiBearerAuth()
-@Roles(UserRole.ADMIN) // toàn bộ quản lý thiết bị chỉ dành cho Admin
+@Permissions('devices.manage')
 @Controller('devices')
 export class DevicesController {
   constructor(private readonly devicesService: DevicesService) {}

@@ -1,8 +1,7 @@
 import { Controller, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import { RoutingEngineService } from './routing-engine.service';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 
 @ApiTags('Routing Engine')
 @ApiBearerAuth()
@@ -10,7 +9,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class RoutingController {
   constructor(private readonly routingEngineService: RoutingEngineService) {}
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('routing.process')
   @Post('process-now')
   @ApiOperation({
     summary:

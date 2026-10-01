@@ -15,13 +15,13 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole, UserStatus } from '@prisma/client';
+import { UserStatus } from '@prisma/client';
 import { UsersService } from './users.service';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserResponseDto } from './dto/user-response.dto';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
@@ -33,7 +33,7 @@ export class UsersController {
 
   // ── Admin quản lý Doctor ────────────────────────────────────────────
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('staff.manage')
   @Post('doctors')
   @ApiOperation({ summary: '[Admin] Tạo tài khoản Doctor mới' })
   @ApiCreatedResponse({ type: UserResponseDto })
@@ -41,7 +41,7 @@ export class UsersController {
     return this.usersService.createDoctor(dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('staff.manage')
   @Get('doctors')
   @ApiOperation({ summary: '[Admin] Danh sách Doctor' })
   @ApiOkResponse({ type: UserResponseDto, isArray: true })
@@ -49,7 +49,7 @@ export class UsersController {
     return this.usersService.listDoctors();
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('staff.manage')
   @Get('doctors/:id')
   @ApiOperation({ summary: '[Admin] Chi tiết 1 Doctor' })
   @ApiOkResponse({ type: UserResponseDto })
@@ -57,7 +57,7 @@ export class UsersController {
     return this.usersService.findDoctorById(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('staff.manage')
   @Patch('doctors/:id/lock')
   @ApiOperation({ summary: '[Admin] Khoá tài khoản Doctor' })
   @ApiOkResponse({ type: UserResponseDto })
@@ -65,7 +65,7 @@ export class UsersController {
     return this.usersService.setStatus(id, UserStatus.LOCKED);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('staff.manage')
   @Patch('doctors/:id/unlock')
   @ApiOperation({ summary: '[Admin] Mở khoá tài khoản Doctor' })
   @ApiOkResponse({ type: UserResponseDto })

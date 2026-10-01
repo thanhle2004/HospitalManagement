@@ -16,7 +16,6 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import { FlowsService } from './flows.service';
 import { FlowStepsService } from './flow-steps.service';
 import { FlowDependenciesService } from './flow-dependencies.service';
@@ -27,7 +26,7 @@ import { UpdateFlowStepDto } from './dto/update-flow-step.dto';
 import { CreateFlowDependencyDto } from './dto/create-flow-dependency.dto';
 import { FlowResponseDto } from './dto/flow-response.dto';
 import { FlowDetailResponseDto } from './dto/flow-detail-response.dto';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 
 @ApiTags('Flows (Workflow Builder)')
 @ApiBearerAuth()
@@ -41,7 +40,7 @@ export class FlowsController {
 
   // ── Flow ────────────────────────────────────────────────────────────
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('flows.manage')
   @Post()
   @ApiOperation({ summary: '[Admin] Tạo workflow (dịch vụ khám) mới' })
   @ApiOkResponse({ type: FlowResponseDto })
@@ -50,6 +49,7 @@ export class FlowsController {
   }
 
   @Get()
+  @Permissions('flows.read')
   @ApiOperation({ summary: 'Danh sách workflow' })
   @ApiOkResponse({ type: FlowResponseDto, isArray: true })
   findAll() {
@@ -57,6 +57,7 @@ export class FlowsController {
   }
 
   @Get(':flowId')
+  @Permissions('flows.read')
   @ApiOperation({
     summary: 'Chi tiết 1 workflow — kèm toàn bộ step + dependency (đồ thị DAG)',
   })
@@ -65,7 +66,7 @@ export class FlowsController {
     return this.flowsService.findDetailById(flowId);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('flows.manage')
   @Patch(':flowId')
   @ApiOperation({ summary: '[Admin] Cập nhật thông tin workflow' })
   @ApiOkResponse({ type: FlowResponseDto })
@@ -76,7 +77,7 @@ export class FlowsController {
     return this.flowsService.update(flowId, dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('flows.manage')
   @Delete(':flowId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '[Admin] Xoá (soft-delete) workflow' })
@@ -86,7 +87,7 @@ export class FlowsController {
 
   // ── FlowStep ────────────────────────────────────────────────────────
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('flows.manage')
   @Post(':flowId/steps')
   @ApiOperation({ summary: '[Admin] Thêm 1 bước khám (FlowStep) vào workflow' })
   createStep(
@@ -96,7 +97,7 @@ export class FlowsController {
     return this.flowStepsService.create(flowId, dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('flows.manage')
   @Patch(':flowId/steps/:stepId')
   @ApiOperation({ summary: '[Admin] Cập nhật 1 bước khám' })
   updateStep(
@@ -107,7 +108,7 @@ export class FlowsController {
     return this.flowStepsService.update(flowId, stepId, dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('flows.manage')
   @Delete(':flowId/steps/:stepId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
@@ -122,7 +123,7 @@ export class FlowsController {
 
   // ── FlowDependency ──────────────────────────────────────────────────
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('flows.manage')
   @Post(':flowId/dependencies')
   @ApiOperation({
     summary:
@@ -135,7 +136,7 @@ export class FlowsController {
     return this.flowDependenciesService.create(flowId, dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('flows.manage')
   @Delete(':flowId/dependencies/:stepId/:requiredStepId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '[Admin] Gỡ quan hệ phụ thuộc giữa 2 step' })

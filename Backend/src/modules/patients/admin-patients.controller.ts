@@ -5,8 +5,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { PatientsService } from './patients.service';
@@ -17,7 +16,7 @@ import { UpdatePatientTypeDto } from './dto/update-patient-type.dto';
 
 @ApiTags('Admin Patients')
 @ApiBearerAuth()
-@Roles(UserRole.ADMIN)
+@Permissions('patients.manage')
 @Controller('admin/patients')
 export class AdminPatientsController {
   constructor(private readonly patientsService: PatientsService) {}

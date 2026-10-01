@@ -17,12 +17,11 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import { DoctorAssignmentsService } from './doctor-assignments.service';
 import { CreateDoctorAssignmentDto } from './dto/create-doctor-assignment.dto';
 import { FindDoctorAssignmentsQueryDto } from './dto/find-doctor-assignments-query.dto';
 import { DoctorAssignmentResponseDto } from './dto/doctor-assignment-response.dto';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 
 @ApiTags('Doctor Assignments')
 @ApiBearerAuth()
@@ -32,7 +31,7 @@ export class DoctorAssignmentsController {
     private readonly doctorAssignmentsService: DoctorAssignmentsService,
   ) {}
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('doctor-assignments.manage')
   @Post()
   @ApiOperation({
     summary: '[Admin] Phân công Doctor vào phòng khám theo ca/khoảng thời gian',
@@ -42,7 +41,7 @@ export class DoctorAssignmentsController {
     return this.doctorAssignmentsService.create(dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('doctor-assignments.manage')
   @Get()
   @ApiOperation({
     summary: 'Danh sách ca trực (lọc theo doctorId/roomId/activeOnly)',
@@ -52,7 +51,7 @@ export class DoctorAssignmentsController {
     return this.doctorAssignmentsService.findAll(query);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('doctor-assignments.manage')
   @Get(':id')
   @ApiOperation({ summary: 'Chi tiết 1 ca trực' })
   @ApiOkResponse({ type: DoctorAssignmentResponseDto })
@@ -60,7 +59,7 @@ export class DoctorAssignmentsController {
     return this.doctorAssignmentsService.findById(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('doctor-assignments.manage')
   @Patch(':id/end')
   @ApiOperation({ summary: '[Admin] Kết thúc ca trực sớm (đặt endTime = hiện tại)' })
   @ApiOkResponse({ type: DoctorAssignmentResponseDto })
@@ -68,7 +67,7 @@ export class DoctorAssignmentsController {
     return this.doctorAssignmentsService.endShift(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('doctor-assignments.manage')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '[Admin] Xoá ca trực (tạo nhầm)' })

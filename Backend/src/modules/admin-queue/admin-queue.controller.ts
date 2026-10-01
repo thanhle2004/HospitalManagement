@@ -1,15 +1,14 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import { AdminQueueService } from './admin-queue.service';
 import { AdminQueueEntryDto } from './dto/admin-queue-entry.dto';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 @ApiTags('Admin Queue Monitoring')
 @ApiBearerAuth()
-@Roles(UserRole.ADMIN)
+@Permissions('queue.manage')
 @Controller('admin/queue')
 export class AdminQueueController {
   constructor(private readonly adminQueueService: AdminQueueService) {}

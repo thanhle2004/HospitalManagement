@@ -5,14 +5,13 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import { VisitsService } from './visits.service';
 import { CreateVisitDto } from './dto/create-visit.dto';
 import { AddAdHocStepDto } from './dto/add-ad-hoc-step.dto';
 import { VisitResponseDto } from './dto/visit-response.dto';
 import { VisitDetailResponseDto } from './dto/visit-detail-response.dto';
 import { Public } from '../../common/decorators/public.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 import { PatientJwtAuthGuard } from '../patient-auth/guards/patient-jwt-auth.guard';
 import { CurrentPatient } from '../patient-auth/decorators/current-patient.decorator';
 import { PatientJwtPayload } from '../patient-auth/interfaces/patient-jwt-payload.interface';
@@ -65,6 +64,7 @@ export class VisitsController {
   // ── Staff giám sát (JwtAuthGuard Staff mặc định, không cần decorator gì thêm) ─
 
   @Get()
+  @Permissions('visits.read')
   @ApiOperation({ summary: '[Staff] Danh sách toàn bộ Visit (giám sát)' })
   @ApiOkResponse({ type: VisitResponseDto, isArray: true })
   findAll() {
@@ -72,6 +72,7 @@ export class VisitsController {
   }
 
   @Get(':id')
+  @Permissions('visits.read')
   @ApiOperation({ summary: '[Staff] Chi tiết 1 Visit bất kỳ' })
   @ApiOkResponse({ type: VisitDetailResponseDto })
   findOne(@Param('id') id: string) {
@@ -80,7 +81,7 @@ export class VisitsController {
 
   // ── Doctor điều chỉnh Workflow runtime (§4) ────────────────────────────
 
-  @Roles(UserRole.DOCTOR)
+  @Permissions('visits.steps.manage')
   @Post(':id/steps')
   @ApiOperation({
     summary: '[Doctor] Chỉ định thêm 1 bước khám ad-hoc ngoài Workflow gốc',
@@ -90,7 +91,7 @@ export class VisitsController {
     return this.visitsService.addAdHocStep(id, dto);
   }
 
-  @Roles(UserRole.DOCTOR)
+  @Permissions('visits.steps.manage')
   @Post(':id/steps/:stepId/skip')
   @ApiOperation({
     summary:

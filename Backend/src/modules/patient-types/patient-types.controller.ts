@@ -16,12 +16,11 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import { PatientTypesService } from './patient-types.service';
 import { CreatePatientTypeDto } from './dto/create-patient-type.dto';
 import { UpdatePatientTypeDto } from './dto/update-patient-type.dto';
 import { PatientTypeResponseDto } from './dto/patient-type-response.dto';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 
 @ApiTags('Patient Types')
 @ApiBearerAuth()
@@ -29,7 +28,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class PatientTypesController {
   constructor(private readonly patientTypesService: PatientTypesService) {}
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('patient-types.manage')
   @Post()
   @ApiOperation({ summary: '[Admin] Tạo loại bệnh nhân mới' })
   @ApiOkResponse({ type: PatientTypeResponseDto })
@@ -38,6 +37,7 @@ export class PatientTypesController {
   }
 
   @Get()
+  @Permissions('patient-types.read')
   @ApiOperation({ summary: 'Danh sách loại bệnh nhân' })
   @ApiOkResponse({ type: PatientTypeResponseDto, isArray: true })
   findAll() {
@@ -45,13 +45,14 @@ export class PatientTypesController {
   }
 
   @Get(':id')
+  @Permissions('patient-types.read')
   @ApiOperation({ summary: 'Chi tiết 1 loại bệnh nhân' })
   @ApiOkResponse({ type: PatientTypeResponseDto })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.patientTypesService.findById(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('patient-types.manage')
   @Patch(':id')
   @ApiOperation({ summary: '[Admin] Cập nhật loại bệnh nhân' })
   @ApiOkResponse({ type: PatientTypeResponseDto })
@@ -62,7 +63,7 @@ export class PatientTypesController {
     return this.patientTypesService.update(id, dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('patient-types.manage')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: '[Admin] Xoá (soft-delete) loại bệnh nhân' })

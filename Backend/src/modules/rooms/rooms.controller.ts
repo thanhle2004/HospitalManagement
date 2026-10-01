@@ -14,14 +14,13 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 import { RoomsService } from './rooms.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { UpdateRoomStatusDto } from './dto/update-room-status.dto';
 import { FindRoomsQueryDto } from './dto/find-rooms-query.dto';
 import { RoomResponseDto } from './dto/room-response.dto';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 
 @ApiTags('Rooms')
 @ApiBearerAuth()
@@ -29,7 +28,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('rooms.manage')
   @Post()
   @ApiOperation({ summary: '[Admin] Tạo phòng khám vật lý mới' })
   @ApiOkResponse({ type: RoomResponseDto })
@@ -38,6 +37,7 @@ export class RoomsController {
   }
 
   @Get()
+  @Permissions('rooms.read')
   @ApiOperation({ summary: 'Danh sách phòng khám (lọc theo roomTypeId/status)' })
   @ApiOkResponse({ type: RoomResponseDto, isArray: true })
   findAll(@Query() query: FindRoomsQueryDto) {
@@ -45,13 +45,14 @@ export class RoomsController {
   }
 
   @Get(':id')
+  @Permissions('rooms.read')
   @ApiOperation({ summary: 'Chi tiết 1 phòng khám' })
   @ApiOkResponse({ type: RoomResponseDto })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.roomsService.findById(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('rooms.manage')
   @Patch(':id')
   @ApiOperation({ summary: '[Admin] Cập nhật thông tin phòng khám' })
   @ApiOkResponse({ type: RoomResponseDto })
@@ -59,7 +60,7 @@ export class RoomsController {
     return this.roomsService.update(id, dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Permissions('rooms.manage')
   @Patch(':id/status')
   @ApiOperation({
     summary: '[Admin] Đổi trạng thái phòng (ACTIVE/INACTIVE/MAINTENANCE)',

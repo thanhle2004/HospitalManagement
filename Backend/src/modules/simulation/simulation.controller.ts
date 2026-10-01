@@ -12,8 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Permissions } from '../rbac/decorators/permissions.decorator';
 import { SimulationOrchestratorService } from './orchestrator/simulation-orchestrator.service';
 import { SimulationRunsRepository } from './repositories/simulation-runs.repository';
 import { SimulationViolationsRepository } from './repositories/simulation-violations.repository';
@@ -34,7 +33,7 @@ import { SimulationEnabledGuard } from './simulation-enabled.guard';
  */
 @ApiTags('Admin Simulation')
 @ApiBearerAuth()
-@Roles(UserRole.ADMIN)
+@Permissions('simulation.manage')
 @UseGuards(SimulationEnabledGuard)
 @Controller('admin/simulation/runs')
 export class SimulationController {
