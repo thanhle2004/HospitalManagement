@@ -8,8 +8,13 @@ export class RoomsMapper {
       roomNumber: room.roomNumber,
       name: room.name,
       sortOrder: room.sortOrder,
+      avgProcessTime: room.avgProcessTime,
       status: room.status,
-      roomType: { id: room.roomType.id, name: room.roomType.name },
+      roomType: {
+        id: room.roomType.id,
+        name: room.roomType.name,
+        avgProcessTime: room.roomType.avgProcessTime,
+      },
       createdAt: room.createdAt,
       updatedAt: room.updatedAt,
     };

@@ -28,6 +28,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { ActivityLogModule } from './modules/activity-log/activity-log.module';
 import { AdminQueueModule } from './modules/admin-queue/admin-queue.module';
 import { HealthModule } from './modules/health/health.module';
+import { SimulationModule } from './modules/simulation/simulation.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
@@ -70,6 +71,9 @@ import { SecurityModule } from './common/security/security.module';
     ActivityLogModule,
     AdminQueueModule,
     HealthModule,
+    // [Simulator Phase 0] Chỉ có SimulationFixturesService ở phase này — chưa
+    // có Controller/Gateway (xem Phase 4/6 trong docs/simulator-architecture.md).
+    SimulationModule,
   ],
   controllers: [AppController],
   providers: [

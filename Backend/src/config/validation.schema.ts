@@ -91,4 +91,8 @@ export const validationSchema = Joi.object({
     .truthy('true')
     .falsy('false')
     .default(true),
+  SIMULATION_ENABLED: Joi.boolean()
+    .truthy('true')
+    .falsy('false')
+    .default(false),
 }).and('FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY');

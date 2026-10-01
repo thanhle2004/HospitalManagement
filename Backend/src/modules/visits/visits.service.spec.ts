@@ -77,4 +77,113 @@ describe('VisitsService characterization', () => {
     );
     expect(eventEmitter.emit).toHaveBeenCalledTimes(2);
   });
+
+  async function resolveGraph(
+    steps: Array<{ id: number; status: VisitStepStatus }>,
+    dependencies: Array<{ stepId: number; requiredStepId: number }>,
+  ) {
+    const tx = { transaction: 'dependency-test' };
+    const visitsRepository = { updateStatus: jest.fn().mockResolvedValue(undefined) };
+    const visitStepsRepository = {
+      findAllByVisit: jest.fn().mockResolvedValue(steps),
+      updateManyStatus: jest.fn().mockResolvedValue({ count: 1 }),
+    };
+    const dependenciesRepository = {
+      findAllByVisit: jest.fn().mockResolvedValue(dependencies),
+    };
+    const routingQueueRepository = {
+      enqueueMany: jest.fn().mockResolvedValue({ count: 1 }),
+    };
+    const service = new VisitsService(
+      visitsRepository as unknown as VisitsRepository,
+      visitStepsRepository as unknown as VisitStepsRepository,
+      dependenciesRepository as unknown as VisitStepDependenciesRepository,
+      routingQueueRepository as unknown as RoutingQueueRepository,
+      {} as FlowsRepository,
+      {} as RoomTypesRepository,
+      {} as PrismaService,
+      { emit: jest.fn() } as unknown as EventEmitter2,
+    );
+
+    const newlyReady = await service.resolveDependenciesAndCheckCompletion(
+      'visit-1',
+      tx as never,
+    );
+    return { newlyReady, visitStepsRepository, routingQueueRepository };
+  }
+
+  it('service 2 keeps independent A and C READY after B completes so routing can choose globally again', async () => {
+    const result = await resolveGraph(
+      [
+        { id: 1, status: VisitStepStatus.READY },
+        { id: 2, status: VisitStepStatus.COMPLETED },
+        { id: 3, status: VisitStepStatus.READY },
+      ],
+      [],
+    );
+
+    expect(result.newlyReady).toEqual([]);
+    expect(result.visitStepsRepository.updateManyStatus).not.toHaveBeenCalled();
+  });
+
+  it('service 3 unlocks C after B completes while independent A remains available', async () => {
+    const result = await resolveGraph(
+      [
+        { id: 1, status: VisitStepStatus.READY },
+        { id: 2, status: VisitStepStatus.COMPLETED },
+        { id: 3, status: VisitStepStatus.LOCKED },
+      ],
+      [{ stepId: 3, requiredStepId: 2 }],
+    );
+
+    expect(result.newlyReady).toEqual([3]);
+    expect(result.routingQueueRepository.enqueueMany).toHaveBeenCalledWith([3], expect.anything());
+  });
+
+  it('service 4 opens C only after both A and B complete', async () => {
+    const dependencies = [
+      { stepId: 3, requiredStepId: 1 },
+      { stepId: 3, requiredStepId: 2 },
+    ];
+    const afterOnlyA = await resolveGraph(
+      [
+        { id: 1, status: VisitStepStatus.COMPLETED },
+        { id: 2, status: VisitStepStatus.READY },
+        { id: 3, status: VisitStepStatus.LOCKED },
+      ],
+      dependencies,
+    );
+    const afterOnlyB = await resolveGraph(
+      [
+        { id: 1, status: VisitStepStatus.READY },
+        { id: 2, status: VisitStepStatus.COMPLETED },
+        { id: 3, status: VisitStepStatus.LOCKED },
+      ],
+      dependencies,
+    );
+    const afterBoth = await resolveGraph(
+      [
+        { id: 1, status: VisitStepStatus.COMPLETED },
+        { id: 2, status: VisitStepStatus.COMPLETED },
+        { id: 3, status: VisitStepStatus.LOCKED },
+      ],
+      dependencies,
+    );
+
+    expect(afterOnlyA.newlyReady).toEqual([]);
+    expect(afterOnlyB.newlyReady).toEqual([]);
+    expect(afterBoth.newlyReady).toEqual([3]);
+  });
+
+  it('does not treat CANCELLED as satisfying a required dependency', async () => {
+    const result = await resolveGraph(
+      [
+        { id: 1, status: VisitStepStatus.CANCELLED },
+        { id: 2, status: VisitStepStatus.LOCKED },
+      ],
+      [{ stepId: 2, requiredStepId: 1 }],
+    );
+
+    expect(result.newlyReady).toEqual([]);
+  });
 });

@@ -7,10 +7,12 @@ export const RoomResponseSchema = z.object({
   roomNumber: z.string(),
   name: z.string(),
   sortOrder: z.number(),
+  avgProcessTime: z.number().nullable(),
   status: z.nativeEnum(RoomStatus),
   roomType: z.object({
     id: z.number(),
     name: z.string(),
+    avgProcessTime: z.number(),
   }),
   createdAt: z.date(),
   updatedAt: z.date(),

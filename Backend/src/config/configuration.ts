@@ -3,6 +3,31 @@ const parseBoolean = (value: string | undefined, fallback: boolean): boolean => 
   return value.toLowerCase() === 'true';
 };
 
+const ROUTING_STRATEGY_NAMES = [
+  'MIN_ESTIMATED_WAITING_TIME',
+  'SHORTEST_QUEUE',
+  'ROUND_ROBIN',
+  'RANDOM',
+  'LEAST_UTILISED',
+] as const;
+
+/** [Phase 3] Không hợp lệ hoặc để trống -> mặc định MIN_ESTIMATED_WAITING_TIME
+ * — giữ nguyên hành vi routing trước khi có khái niệm "strategy" (xem
+ * docs/simulator-architecture.md §5.1). Không throw khi giá trị sai — 1
+ * biến môi trường gõ nhầm không được phép làm sập routing của cả bệnh viện,
+ * chỉ nên log cảnh báo và rơi về mặc định an toàn. */
+const parseRoutingStrategy = (value: string | undefined): string => {
+  const upper = (value ?? '').trim().toUpperCase();
+  if ((ROUTING_STRATEGY_NAMES as readonly string[]).includes(upper)) return upper;
+  if (value) {
+    // eslint-disable-next-line no-console -- configuration.ts chạy trước khi Logger của Nest sẵn sàng
+    console.warn(
+      `[configuration] ROUTING_STRATEGY="${value}" không hợp lệ, dùng mặc định MIN_ESTIMATED_WAITING_TIME. Giá trị hợp lệ: ${ROUTING_STRATEGY_NAMES.join(', ')}`,
+    );
+  }
+  return 'MIN_ESTIMATED_WAITING_TIME';
+};
+
 const parseOrigins = (value: string | undefined): string[] =>
   (value ?? 'http://localhost:3001')
     .split(',')
@@ -74,6 +99,14 @@ export default () => {
         process.env.ROUTING_MAX_RETRY_ATTEMPTS || '5',
         10,
       ),
+      // [Phase 3] xem docs/simulator-architecture.md §5.1 — mặc định giữ
+      // nguyên hành vi Greedy ETA nhỏ nhất đã có từ trước.
+      strategy: parseRoutingStrategy(process.env.ROUTING_STRATEGY),
+    },
+    simulation: {
+      // Default-off: current simulator deliberately exercises real domain
+      // services/physical Room rows and must use a dedicated database.
+      enabled: parseBoolean(process.env.SIMULATION_ENABLED, false),
     },
   };
 };

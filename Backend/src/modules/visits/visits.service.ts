@@ -23,11 +23,14 @@ import { findReadyNodes } from '../../common/utils/graph.util';
 import { VISIT_STEP_READY_EVENT, VisitStepReadyEvent } from './events/visit-step-ready.event';
 import { VISIT_UPDATED_EVENT, VisitUpdatedEvent } from './events/visit-updated.event';
 
-/** 3 trạng thái coi là "đã xử lý xong" đối với dependency resolution lẫn kiểm tra Visit hoàn tất */
+/**
+ * Only a genuinely completed step, or an optional step explicitly skipped
+ * by policy, can satisfy a prerequisite. Cancellation must not unlock a
+ * dependent clinical step.
+ */
 const RESOLVED_STEP_STATUSES: VisitStepStatus[] = [
   VisitStepStatus.COMPLETED,
   VisitStepStatus.SKIPPED,
-  VisitStepStatus.CANCELLED,
 ];
 
 @Injectable()
@@ -54,6 +57,7 @@ export class VisitsService {
   async create(
     patientId: string,
     dto: CreateVisitDto,
+    simulationRunId?: string,
   ): Promise<VisitDetailResponseDto> {
     const flowGraph = await this.flowsRepository.findByIdWithGraph(dto.flowId);
     if (!flowGraph) {
@@ -71,6 +75,9 @@ export class VisitsService {
           {
             patient: { connect: { id: patientId } },
             flow: { connect: { id: dto.flowId } },
+            simulationRun: simulationRunId
+              ? { connect: { id: simulationRunId } }
+              : undefined,
             status: VisitStatus.CREATED,
           },
           tx,

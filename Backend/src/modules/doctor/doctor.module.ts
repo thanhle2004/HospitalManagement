@@ -17,5 +17,9 @@ import { VisitsModule } from '../visits/visits.module';
   ],
   controllers: [DoctorController],
   providers: [DoctorService],
+  // [Simulator Phase 2] DoctorModule trước đây không export gì — không ai
+  // ngoài chính nó cần DoctorService. DoctorSimulator (mô-đun simulation)
+  // là consumer đầu tiên cần gọi thẳng service này trong tiến trình.
+  exports: [DoctorService],
 })
 export class DoctorModule {}

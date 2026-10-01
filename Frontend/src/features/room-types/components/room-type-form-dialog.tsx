@@ -15,7 +15,7 @@ import type { RoomType } from "../types";
 const schema = z.object({
   name: z.string().min(1, "Tên không được để trống"),
   description: z.string().optional(),
-  avgProcessTime: z.coerce.number().int().positive("Phải > 0 (đơn vị: phút)"),
+  avgProcessTime: z.coerce.number().int().positive("Phải > 0 (đơn vị: giây)"),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -71,7 +71,7 @@ export function RoomTypeFormDialog({ open, onOpenChange, roomType }: RoomTypeFor
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="avgProcessTime">Thời gian khám trung bình (phút)</Label>
+            <Label htmlFor="avgProcessTime">Thời gian khám trung bình (giây)</Label>
             <Input id="avgProcessTime" type="number" min={1} {...register("avgProcessTime")} />
             {errors.avgProcessTime && (
               <p className="text-xs text-red-600">{errors.avgProcessTime.message}</p>

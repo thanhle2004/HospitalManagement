@@ -71,4 +71,15 @@ export class UsersRepository {
   ): Promise<UserProfile> {
     return db.userProfile.update({ where: { userId }, data });
   }
+
+  /** [Simulator Phase 0] Xoá cứng (không phải soft-delete) — CHỈ dùng cho
+   * User bác sĩ tổng hợp do fixtures service tạo ra. DoctorAssignment.doctor
+   * có onDelete: Cascade nên các ca trực tổng hợp tự dọn theo. */
+  deleteManyByIds(
+    ids: string[],
+    db: Db = this.prisma,
+  ): Promise<Prisma.BatchPayload> {
+    if (ids.length === 0) return Promise.resolve({ count: 0 });
+    return db.user.deleteMany({ where: { id: { in: ids } } });
+  }
 }

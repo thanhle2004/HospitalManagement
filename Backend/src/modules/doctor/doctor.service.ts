@@ -209,59 +209,93 @@ export class DoctorService {
 
     await this.assertDoctorOnDutyAtRoom(doctorId, assignment.roomId);
 
-    const readyStepIds = await this.prisma.transaction(async (tx) => {
-      const now = new Date();
+    // [Phase 3 — bugfix, xem docs/simulator-architecture.md §2.3/§5.1] BẢN
+    // GỐC gọi trySetCurrentAssignment() để giải phóng RoomRuntime nhưng bỏ
+    // qua giá trị boolean trả về. Nếu version đã đổi giữa lúc đọc runtime và
+    // lúc ghi (1 tiến trình khác chạm vào RoomRuntime của phòng này ở giữa),
+    // CAS thất bại ÂM THẦM — RoomRuntime.currentVisitAssignmentId tiếp tục
+    // trỏ vào assignment VỪA COMPLETED, khiến startExam() tiếp theo cho
+    // phòng này báo "đang bận" MÃI MÃI dù không còn ai đang khám thật. Fix:
+    // bọc theo đúng pattern retry đã có sẵn ở startExam() — CAS thất bại thì
+    // thử lại toàn bộ transaction (đọc lại version mới), không âm thầm bỏ
+    // qua.
+    for (let attempt = 0; attempt < MAX_LOCK_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const readyStepIds = await this.prisma.transaction(async (tx) => {
+          const now = new Date();
 
-      await this.visitAssignmentsRepository.updateStatus(
-        visitAssignmentId,
-        AssignmentStatus.COMPLETED,
-        { completedAt: now },
-        tx,
-      );
-      await this.visitStepsRepository.updateStatus(
-        assignment.visitStep.id,
-        VisitStepStatus.COMPLETED,
-        { completedAt: now },
-        tx,
-      );
-      await this.roomQueueEntriesRepository.deleteByVisitAssignment(
-        visitAssignmentId,
-        tx,
-      );
+          await this.visitAssignmentsRepository.updateStatus(
+            visitAssignmentId,
+            AssignmentStatus.COMPLETED,
+            { completedAt: now },
+            tx,
+          );
+          await this.visitStepsRepository.updateStatus(
+            assignment.visitStep.id,
+            VisitStepStatus.COMPLETED,
+            { completedAt: now },
+            tx,
+          );
+          await this.roomQueueEntriesRepository.deleteByVisitAssignment(
+            visitAssignmentId,
+            tx,
+          );
 
-      // Giải phóng RoomRuntime — chỉ clear nếu đúng assignment này đang chiếm giữ
-      const runtime = await this.roomRuntimeRepository.findByRoomId(
-        assignment.roomId,
-        tx,
-      );
-      if (runtime?.currentVisitAssignmentId === visitAssignmentId) {
-        await this.roomRuntimeRepository.trySetCurrentAssignment(
-          assignment.roomId,
-          null,
-          runtime.version,
-          tx,
+          // Giải phóng RoomRuntime — chỉ clear nếu đúng assignment này đang chiếm giữ
+          const runtime = await this.roomRuntimeRepository.findByRoomId(
+            assignment.roomId,
+            tx,
+          );
+          if (runtime?.currentVisitAssignmentId === visitAssignmentId) {
+            const claimed = await this.roomRuntimeRepository.trySetCurrentAssignment(
+              assignment.roomId,
+              null,
+              runtime.version,
+              tx,
+            );
+            if (!claimed) {
+              throw new OptimisticLockConflictError();
+            }
+          }
+
+          return this.visitsService.resolveDependenciesAndCheckCompletion(
+            assignment.visitStep.visitId,
+            tx,
+          );
+        });
+
+        for (const stepId of readyStepIds) {
+          this.eventEmitter.emit(VISIT_STEP_READY_EVENT, new VisitStepReadyEvent(stepId));
+        }
+        // The remaining independent READY steps may not have transitioned in
+        // this completion, so request another Visit-level routing decision.
+        if (readyStepIds.length === 0) {
+          this.eventEmitter.emit(
+            VISIT_STEP_READY_EVENT,
+            new VisitStepReadyEvent(assignment.visitStep.id),
+          );
+        }
+        this.eventEmitter.emit(
+          VISIT_UPDATED_EVENT,
+          new VisitUpdatedEvent(assignment.visitStep.visitId),
         );
+        this.eventEmitter.emit(
+          ROOM_QUEUE_UPDATED_EVENT,
+          new RoomQueueUpdatedEvent(assignment.roomId),
+        );
+
+        return { visitAssignmentId, status: AssignmentStatus.COMPLETED };
+      } catch (err) {
+        if (err instanceof OptimisticLockConflictError) {
+          continue; // RoomRuntime vừa bị 1 tiến trình khác chạm vào — đọc lại version mới rồi thử lại
+        }
+        throw err;
       }
-
-      return this.visitsService.resolveDependenciesAndCheckCompletion(
-        assignment.visitStep.visitId,
-        tx,
-      );
-    });
-
-    for (const stepId of readyStepIds) {
-      this.eventEmitter.emit(VISIT_STEP_READY_EVENT, new VisitStepReadyEvent(stepId));
     }
-    this.eventEmitter.emit(
-      VISIT_UPDATED_EVENT,
-      new VisitUpdatedEvent(assignment.visitStep.visitId),
-    );
-    this.eventEmitter.emit(
-      ROOM_QUEUE_UPDATED_EVENT,
-      new RoomQueueUpdatedEvent(assignment.roomId),
-    );
 
-    return { visitAssignmentId, status: AssignmentStatus.COMPLETED };
+    throw new ConflictException(
+      'Không thể hoàn thành khám do xung đột đồng thời khi giải phóng phòng — vui lòng thử lại',
+    );
   }
 
   private async assertDoctorOnDutyAtRoom(doctorId: string, roomId: number): Promise<void> {

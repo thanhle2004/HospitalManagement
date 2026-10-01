@@ -15,6 +15,9 @@ import { VisitsModule } from '../visits/visits.module';
   ],
   controllers: [CheckInController],
   providers: [CheckInService, RoomQueueEntriesRepository, CheckInLogsRepository],
-  exports: [RoomQueueEntriesRepository],
+  // [Simulator Phase 2] Thêm CheckInService — PatientGenerator (mô-đun
+  // simulation) gọi thẳng service này trong tiến trình để giả lập bệnh nhân
+  // quét QR, thay vì đi qua HTTP (xem docs/simulator-architecture.md §4.2).
+  exports: [RoomQueueEntriesRepository, CheckInService],
 })
 export class CheckInModule {}

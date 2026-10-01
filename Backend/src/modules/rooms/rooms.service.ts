@@ -37,6 +37,7 @@ export class RoomsService {
           roomNumber: dto.roomNumber,
           name: dto.name,
           sortOrder: dto.sortOrder,
+          avgProcessTime: dto.avgProcessTime,
           roomType: { connect: { id: dto.roomTypeId } },
         },
         tx,
@@ -80,6 +81,7 @@ export class RoomsService {
       roomNumber: dto.roomNumber,
       name: dto.name,
       sortOrder: dto.sortOrder,
+      avgProcessTime: dto.avgProcessTime,
       roomType: dto.roomTypeId ? { connect: { id: dto.roomTypeId } } : undefined,
     });
 

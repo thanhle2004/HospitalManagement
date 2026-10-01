@@ -8,7 +8,7 @@ export const CreateRoomTypeSchema = z
     avgProcessTime: z.coerce
       .number()
       .int()
-      .positive('Thời gian xử lý trung bình phải > 0 (đơn vị: phút)'),
+      .positive('Thời gian xử lý trung bình phải > 0 (đơn vị: giây)'),
   })
   .strict();
 

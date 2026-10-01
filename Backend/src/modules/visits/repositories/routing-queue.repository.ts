@@ -67,4 +67,14 @@ export class RoutingQueueRepository {
   async deleteIfExists(visitStepId: number, db: Db = this.prisma): Promise<void> {
     await db.routingQueue.deleteMany({ where: { visitStepId } });
   }
+
+  /** [Phase 4] Dùng bởi SimulationAssertionsRunner cho A12 — chỉ các entry
+   * thuộc về VisitStep của 1 scenario đang chạy, không quét toàn bộ hàng đợi. */
+  findAllByVisitStepIds(
+    visitStepIds: number[],
+    db: Db = this.prisma,
+  ): Promise<RoutingQueue[]> {
+    if (visitStepIds.length === 0) return Promise.resolve([]);
+    return db.routingQueue.findMany({ where: { visitStepId: { in: visitStepIds } } });
+  }
 }

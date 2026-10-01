@@ -91,6 +91,37 @@ export class PatientsRepository {
     return db.patient.create({ data });
   }
 
+  /** [Simulator Phase 0] Bulk insert — MySQL createMany không trả id, nên
+   * caller phải tự query lại (vd findAllBySimulationRun) nếu cần id ngay. */
+  createMany(
+    data: Prisma.PatientCreateManyInput[],
+    db: Db = this.prisma,
+  ): Promise<Prisma.BatchPayload> {
+    if (data.length === 0) return Promise.resolve({ count: 0 });
+    return db.patient.createMany({ data });
+  }
+
+  /** [Simulator Phase 0] Toàn bộ Patient tổng hợp thuộc 1 run mô phỏng. */
+  findAllBySimulationRun(
+    simulationRunId: string,
+    db: Db = this.prisma,
+  ): Promise<Patient[]> {
+    return db.patient.findMany({
+      where: { simulationRunId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /** [Simulator Phase 0] Dọn Patient tổng hợp — CHỈ an toàn gọi SAU KHI mọi
+   * Visit của run này đã bị xoá (Visit.patientId là quan hệ bắt buộc, mặc
+   * định RESTRICT — xem SimulationFixturesService.teardownRun). */
+  deleteManyBySimulationRun(
+    simulationRunId: string,
+    db: Db = this.prisma,
+  ): Promise<Prisma.BatchPayload> {
+    return db.patient.deleteMany({ where: { simulationRunId } });
+  }
+
   incrementTokenVersion(id: string, db: Db = this.prisma): Promise<Patient> {
     return db.patient.update({
       where: { id },

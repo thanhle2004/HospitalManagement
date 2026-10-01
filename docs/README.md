@@ -7,6 +7,7 @@ Phạm vi: `Backend/` và `Frontend/` trong workspace hiện tại. Giai đoạn
 
 | Tài liệu | Nội dung |
 |---|---|
+| [phase-0-baseline-2026-10-01.md](phase-0-baseline-2026-10-01.md) | Baseline hiện trạng mới nhất: routing core, test report, gap/dependency map, permission matrix và đề xuất Slice 1A |
 | [legacy-system-audit.md](legacy-system-audit.md) | Stack, cấu trúc, entry point, auth, triển khai, tích hợp, technical debt và kết luận khảo sát |
 | [business-modules.md](business-modules.md) | Inventory module, vai trò, luồng, validation, trạng thái, API, bảng, quyền và trường hợp đặc biệt |
 | [database-inventory.md](database-inventory.md) | Inventory 24 bảng MySQL, khóa/index, dữ liệu nhạy cảm, truy vấn và rủi ro dữ liệu |

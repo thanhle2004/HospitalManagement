@@ -5,6 +5,13 @@ import { PrismaService } from '../../../prisma/prisma.service';
 type Db = PrismaService | Prisma.TransactionClient;
 export type VisitAssignmentWithStep = VisitAssignment & { visitStep: VisitStep };
 
+export interface RoomAssignmentWorkload {
+  /** A room can serve at most one assignment at a time. */
+  inServiceCount: number;
+  /** Patients assigned to the room but not yet in service. */
+  waitingCount: number;
+}
+
 @Injectable()
 export class VisitAssignmentsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -46,14 +53,35 @@ export class VisitAssignmentsRepository {
   }
 
   /**
-   * Đếm số VisitAssignment đang "chiếm dụng" 1 phòng — dùng cho công thức
-   * ETA (§8 bước 4: "Số lượng bệnh nhân đang chờ" + "Bệnh nhân đang được
-   * khám" = mọi assignment CHƯA hoàn thành/huỷ tại phòng đó).
+   * Return the two explicit terms used by the routing ETA formula. Keeping
+   * them separate prevents an aggregate "active" count from accidentally
+   * including COMPLETED/CANCELLED assignments or obscuring queue semantics.
    */
-  countActiveByRoom(roomId: number, db: Db = this.prisma): Promise<number> {
+  async countWorkloadByRoom(
+    roomId: number,
+    db: Db = this.prisma,
+  ): Promise<RoomAssignmentWorkload> {
+    const [inServiceCount, waitingCount] = await Promise.all([
+      db.visitAssignment.count({
+        where: { roomId, status: AssignmentStatus.IN_PROGRESS },
+      }),
+      db.visitAssignment.count({
+        where: {
+          roomId,
+          status: {
+            in: [AssignmentStatus.WAITING, AssignmentStatus.CHECKED_IN],
+          },
+        },
+      }),
+    ]);
+
+    return { inServiceCount, waitingCount };
+  }
+
+  countActiveByVisit(visitId: string, db: Db = this.prisma): Promise<number> {
     return db.visitAssignment.count({
       where: {
-        roomId,
+        visitStep: { visitId },
         status: {
           in: [
             AssignmentStatus.WAITING,

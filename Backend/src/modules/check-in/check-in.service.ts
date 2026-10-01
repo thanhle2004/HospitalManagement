@@ -5,7 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AssignmentStatus, QueueEntrySource, VisitStepStatus } from '@prisma/client';
+import {
+  AssignmentStatus,
+  CancelReason,
+  QueueEntrySource,
+  VisitStatus,
+  VisitStepStatus,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DevicesRepository } from '../devices/devices.repository';
 import { VisitTokensRepository } from '../routing/repositories/visit-tokens.repository';
@@ -20,6 +26,12 @@ import {
   ROOM_QUEUE_UPDATED_EVENT,
   RoomQueueUpdatedEvent,
 } from './events/room-queue-updated.event';
+
+const TERMINAL_VISIT_STEP_STATUSES = new Set<VisitStepStatus>([
+  VisitStepStatus.COMPLETED,
+  VisitStepStatus.SKIPPED,
+  VisitStepStatus.CANCELLED,
+]);
 
 @Injectable()
 export class CheckInService {
@@ -104,6 +116,12 @@ export class CheckInService {
 
     // Hợp lệ toàn bộ — ghi nhận check-in trong 1 transaction (Unit of Work)
     const queuePosition = await this.prisma.transaction(async (tx) => {
+      // Serialize append operations per physical room. Without this row lock,
+      // two transactions can both observe the same max(position), calculate
+      // max + 1, and one patient is then lost to the unique(roomId, position)
+      // constraint. Different rooms remain fully concurrent.
+      await tx.$queryRaw`SELECT id FROM rooms WHERE id = ${assignment.roomId} FOR UPDATE`;
+
       await this.visitTokensRepository.markUsed(visitToken.id, tx);
       await this.visitAssignmentsRepository.updateStatus(
         assignment.id,
@@ -160,5 +178,98 @@ export class CheckInService {
       roomId: assignment.roomId,
       queuePosition,
     };
+  }
+
+  /**
+   * Policy no-show: a patient who does not scan the QR cancels the entire
+   * visit. Every non-terminal step and active assignment is cancelled in the
+   * same transaction; QR tokens, routing entries, physical queue entries and
+   * RoomRuntime claims are removed so the patient contributes no phantom
+   * load. CANCELLED is deliberately terminal and does not unlock downstream
+   * dependencies.
+   */
+  async cancelNoShow(visitId: string, visitStepId: number): Promise<boolean> {
+    const releasedRoomIds = await this.prisma.transaction(async (tx) => {
+      const steps = await tx.visitStep.findMany({
+        where: { visitId },
+        select: {
+          id: true,
+          status: true,
+          assignments: {
+            where: {
+              status: {
+                in: [
+                  AssignmentStatus.WAITING,
+                  AssignmentStatus.CHECKED_IN,
+                  AssignmentStatus.IN_PROGRESS,
+                ],
+              },
+            },
+            select: { id: true, roomId: true, status: true },
+          },
+        },
+      });
+      const triggeringStep = steps.find((step) => step.id === visitStepId);
+      if (
+        !triggeringStep ||
+        !triggeringStep.assignments.some(
+          (assignment) => assignment.status === AssignmentStatus.WAITING,
+        )
+      ) {
+        return null;
+      }
+
+      const activeAssignments = steps.flatMap((step) => step.assignments);
+      const assignmentIds = activeAssignments.map((assignment) => assignment.id);
+      const nonTerminalStepIds = steps
+        .filter((step) => !TERMINAL_VISIT_STEP_STATUSES.has(step.status))
+        .map((step) => step.id);
+
+      if (assignmentIds.length > 0) {
+        await tx.roomQueueEntry.deleteMany({
+          where: { visitAssignmentId: { in: assignmentIds } },
+        });
+        await tx.visitToken.deleteMany({
+          where: { visitAssignmentId: { in: assignmentIds } },
+        });
+        await tx.roomRuntime.updateMany({
+          where: { currentVisitAssignmentId: { in: assignmentIds } },
+          data: { currentVisitAssignmentId: null, version: { increment: 1 } },
+        });
+        await tx.visitAssignment.updateMany({
+          where: { id: { in: assignmentIds } },
+          data: {
+            status: AssignmentStatus.CANCELLED,
+            cancelReason: CancelReason.NO_SHOW_TIMEOUT,
+            cancelledAt: new Date(),
+          },
+        });
+      }
+      if (nonTerminalStepIds.length > 0) {
+        await tx.routingQueue.deleteMany({
+          where: { visitStepId: { in: nonTerminalStepIds } },
+        });
+        await tx.visitStep.updateMany({
+          where: { id: { in: nonTerminalStepIds } },
+          data: { status: VisitStepStatus.CANCELLED },
+        });
+      }
+      await tx.visit.update({
+        where: { id: visitId },
+        data: { status: VisitStatus.CANCELLED, cancelledAt: new Date() },
+      });
+
+      return Array.from(new Set(activeAssignments.map((assignment) => assignment.roomId)));
+    });
+
+    if (releasedRoomIds === null) return false;
+    this.eventEmitter.emit(VISIT_UPDATED_EVENT, new VisitUpdatedEvent(visitId));
+    for (const roomId of releasedRoomIds) {
+      this.eventEmitter.emit(
+        ROOM_QUEUE_UPDATED_EVENT,
+        new RoomQueueUpdatedEvent(roomId),
+      );
+    }
+    return true;
   }
 }

@@ -1,5 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Room, RoomStatus, RoomType } from '@prisma/client';
+import {
+  DeviceStatus,
+  DeviceType,
+  Prisma,
+  Room,
+  RoomStatus,
+  RoomType,
+  UserRole,
+  UserStatus,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 type Db = PrismaService | Prisma.TransactionClient;
@@ -45,9 +54,49 @@ export class RoomsRepository {
   findActiveByRoomType(
     roomTypeId: number,
     db: Db = this.prisma,
-  ): Promise<Room[]> {
+  ): Promise<RoomWithType[]> {
     return db.room.findMany({
       where: { roomTypeId, status: RoomStatus.ACTIVE },
+      include: { roomType: true },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    });
+  }
+
+  /**
+   * Physical rooms that can actually accept a routed patient right now.
+   * The current patient flow always issues a room QR token, therefore a
+   * live QR scanner is mandatory in addition to an ACTIVE room and a
+   * confirmed doctor whose shift covers `at`.
+   */
+  findRoutingEligibleByRoomType(
+    roomTypeId: number,
+    at: Date,
+    db: Db = this.prisma,
+  ): Promise<RoomWithType[]> {
+    return db.room.findMany({
+      where: {
+        roomTypeId,
+        status: RoomStatus.ACTIVE,
+        doctorAssignments: {
+          some: {
+            startTime: { lte: at },
+            roomConfirmedAt: { not: null },
+            OR: [{ endTime: null }, { endTime: { gt: at } }],
+            doctor: {
+              role: UserRole.DOCTOR,
+              status: UserStatus.ACTIVE,
+            },
+          },
+        },
+        devices: {
+          some: {
+            type: DeviceType.QR_SCANNER,
+            status: DeviceStatus.ACTIVE,
+          },
+        },
+      },
+      include: { roomType: true },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });
   }
 

@@ -14,6 +14,7 @@ import {
   Users,            // Thay cho Users (Danh sách BN)
   ListOrdered,
   Activity,         // Thay cho History (Nhật ký)
+  FlaskConical,     // Mô phỏng luồng bệnh nhân
   // Lucide icons bổ sung cho các nhóm
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ const NAV_ITEMS = [
   { section: "HỆ THỐNG", items: [
     { href: "/admin/queue", label: "Giám sát hàng đợi", icon: ListOrdered, built: true },
     { href: "/admin/activity-logs", label: "Nhật ký hoạt động", icon: Activity, built: true },
+    { href: "/admin/simulation", label: "Mô phỏng luồng bệnh nhân", icon: FlaskConical, built: true },
   ]},
 ] as const;
 

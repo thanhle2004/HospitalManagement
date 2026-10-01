@@ -164,4 +164,115 @@ describe('DoctorService characterization', () => {
       tx,
     );
   });
+
+  // [Phase 3] completeExam() không có test nào từ trước — 2 test dưới đây
+  // vừa khoá lại hành vi bình thường, vừa là test hồi quy trực tiếp cho lỗi
+  // đã sửa ở §2.3/§5.1 (CAS release RoomRuntime bị bỏ qua giá trị trả về).
+  function buildCompleteExamService(overrides: {
+    trySetCurrentAssignmentResults?: boolean[];
+  }) {
+    const tx = { transaction: 'test' };
+    const doctorAssignmentsRepository = {
+      findActiveRoomIdsForDoctor: jest.fn().mockResolvedValue([4]),
+    };
+    const visitAssignmentsRepository = {
+      findByIdWithStep: jest.fn().mockResolvedValue({
+        id: 9,
+        roomId: 4,
+        status: AssignmentStatus.IN_PROGRESS,
+        visitStep: { id: 12, visitId: 'visit-1' },
+      }),
+      updateStatus: jest.fn().mockResolvedValue(undefined),
+    };
+    const results = overrides.trySetCurrentAssignmentResults ?? [true];
+    let call = 0;
+    const roomRuntimeRepository = {
+      findByRoomId: jest.fn().mockResolvedValue({
+        roomId: 4,
+        currentVisitAssignmentId: 9,
+        version: 3,
+      }),
+      trySetCurrentAssignment: jest.fn().mockImplementation(async () => {
+        const result = results[Math.min(call, results.length - 1)];
+        call += 1;
+        return result;
+      }),
+    };
+    const visitStepsRepository = {
+      updateStatus: jest.fn().mockResolvedValue(undefined),
+    };
+    const roomQueueEntriesRepository = {
+      deleteByVisitAssignment: jest.fn().mockResolvedValue(undefined),
+    };
+    const visitsService = {
+      resolveDependenciesAndCheckCompletion: jest.fn().mockResolvedValue([34, 35]),
+    };
+    const prisma = {
+      transaction: jest.fn(async (work: (transaction: unknown) => unknown) => work(tx)),
+    };
+    const eventEmitter = { emit: jest.fn() };
+    const service = new DoctorService(
+      doctorAssignmentsRepository as unknown as DoctorAssignmentsRepository,
+      visitAssignmentsRepository as unknown as VisitAssignmentsRepository,
+      roomQueueEntriesRepository as unknown as RoomQueueEntriesRepository,
+      roomRuntimeRepository as unknown as RoomRuntimeRepository,
+      visitStepsRepository as unknown as VisitStepsRepository,
+      visitsService as unknown as VisitsService,
+      prisma as unknown as PrismaService,
+      eventEmitter as unknown as EventEmitter2,
+    );
+    return {
+      service,
+      tx,
+      prisma,
+      roomRuntimeRepository,
+      visitAssignmentsRepository,
+      visitStepsRepository,
+      roomQueueEntriesRepository,
+      visitsService,
+      eventEmitter,
+    };
+  }
+
+  it('completes the exam, releases the room, and emits VISIT_STEP_READY for every newly-unlocked step', async () => {
+    const { service, tx, roomRuntimeRepository, roomQueueEntriesRepository, eventEmitter } =
+      buildCompleteExamService({});
+
+    const result = await service.completeExam('doctor-1', 9);
+
+    expect(result).toEqual({ visitAssignmentId: 9, status: AssignmentStatus.COMPLETED });
+    expect(roomRuntimeRepository.trySetCurrentAssignment).toHaveBeenCalledWith(4, null, 3, tx);
+    expect(roomQueueEntriesRepository.deleteByVisitAssignment).toHaveBeenCalledWith(9, tx);
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      'visit-step.ready',
+      expect.objectContaining({ visitStepId: 34 }),
+    );
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      'visit-step.ready',
+      expect.objectContaining({ visitStepId: 35 }),
+    );
+  });
+
+  it('[regression for §2.3] retries the whole transaction when the RoomRuntime release CAS is lost, instead of silently leaving the room stuck occupied', async () => {
+    const { service, prisma, roomRuntimeRepository } = buildCompleteExamService({
+      trySetCurrentAssignmentResults: [false, true], // thua CAS lần 1 (bị 1 tiến trình khác chạm vào), thắng lần 2
+    });
+
+    const result = await service.completeExam('doctor-1', 9);
+
+    expect(result).toEqual({ visitAssignmentId: 9, status: AssignmentStatus.COMPLETED });
+    expect(roomRuntimeRepository.trySetCurrentAssignment).toHaveBeenCalledTimes(2);
+    expect(prisma.transaction).toHaveBeenCalledTimes(2); // toàn bộ transaction chạy lại, không chỉ riêng bước release
+  });
+
+  it('gives up after MAX_LOCK_RETRY_ATTEMPTS instead of retrying forever', async () => {
+    const { service, roomRuntimeRepository } = buildCompleteExamService({
+      trySetCurrentAssignmentResults: [false, false, false], // luôn thua CAS
+    });
+
+    await expect(service.completeExam('doctor-1', 9)).rejects.toThrow(
+      'Không thể hoàn thành khám do xung đột đồng thời',
+    );
+    expect(roomRuntimeRepository.trySetCurrentAssignment).toHaveBeenCalledTimes(3);
+  });
 });

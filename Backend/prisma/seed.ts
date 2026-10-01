@@ -65,16 +65,18 @@ async function seedDoctor(email: string, fullName: string, passwordHash: string)
   });
 }
 
-async function seedRoomType(name: string, avgProcessTime: number) {
+async function seedRoomType(name: string, avgProcessTimeSeconds: number) {
   // RoomType.name không unique trong schema — tự check tồn tại trước khi tạo
   const existing = await prisma.roomType.findFirst({ where: { name } });
   if (existing) {
     return prisma.roomType.update({
       where: { id: existing.id },
-      data: { avgProcessTime, deletedAt: null },
+      data: { avgProcessTime: avgProcessTimeSeconds, deletedAt: null },
     });
   }
-  return prisma.roomType.create({ data: { name, avgProcessTime } });
+  return prisma.roomType.create({
+    data: { name, avgProcessTime: avgProcessTimeSeconds },
+  });
 }
 
 async function seedRoom(
@@ -736,21 +738,21 @@ async function main() {
     `✅ ${doctorsByEmail.size} tài khoản Doctor demo đã sẵn sàng (credentials omitted from logs)`,
   );
 
-  const roomTypeVitalSigns = await seedRoomType('Tiếp nhận & Đo sinh hiệu', 8);
-  const roomTypeInternal = await seedRoomType('Khám Nội', 15);
-  const roomTypeSurgery = await seedRoomType('Khám Ngoại', 15);
-  const roomTypeEye = await seedRoomType('Khám Mắt', 10);
-  const roomTypeEnt = await seedRoomType('Tai Mũi Họng', 12);
-  const roomTypeDental = await seedRoomType('Răng Hàm Mặt', 20);
-  const roomTypeDermatology = await seedRoomType('Da liễu', 12);
-  const roomTypeObstetrics = await seedRoomType('Sản phụ khoa', 20);
-  const roomTypePediatrics = await seedRoomType('Nhi khoa', 15);
-  const roomTypeCardiology = await seedRoomType('Tim mạch', 20);
-  const roomTypeLaboratory = await seedRoomType('Xét nghiệm', 25);
-  const roomTypeImaging = await seedRoomType('Chẩn đoán hình ảnh', 20);
-  const roomTypeUltrasound = await seedRoomType('Siêu âm', 15);
-  const roomTypeEcg = await seedRoomType('Điện tim', 10);
-  const roomTypeConclusion = await seedRoomType('Tư vấn kết luận', 10);
+  const roomTypeVitalSigns = await seedRoomType('Tiếp nhận & Đo sinh hiệu', 8 * 60);
+  const roomTypeInternal = await seedRoomType('Khám Nội', 15 * 60);
+  const roomTypeSurgery = await seedRoomType('Khám Ngoại', 15 * 60);
+  const roomTypeEye = await seedRoomType('Khám Mắt', 10 * 60);
+  const roomTypeEnt = await seedRoomType('Tai Mũi Họng', 12 * 60);
+  const roomTypeDental = await seedRoomType('Răng Hàm Mặt', 20 * 60);
+  const roomTypeDermatology = await seedRoomType('Da liễu', 12 * 60);
+  const roomTypeObstetrics = await seedRoomType('Sản phụ khoa', 20 * 60);
+  const roomTypePediatrics = await seedRoomType('Nhi khoa', 15 * 60);
+  const roomTypeCardiology = await seedRoomType('Tim mạch', 20 * 60);
+  const roomTypeLaboratory = await seedRoomType('Xét nghiệm', 25 * 60);
+  const roomTypeImaging = await seedRoomType('Chẩn đoán hình ảnh', 20 * 60);
+  const roomTypeUltrasound = await seedRoomType('Siêu âm', 15 * 60);
+  const roomTypeEcg = await seedRoomType('Điện tim', 10 * 60);
+  const roomTypeConclusion = await seedRoomType('Tư vấn kết luận', 10 * 60);
 
   const hospitalRoomTypes: HospitalRoomTypes = {
     vitalSigns: roomTypeVitalSigns.id,

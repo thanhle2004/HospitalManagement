@@ -61,4 +61,15 @@ export class DevicesRepository {
       data: { secretKeyHash, tokenVersion: { increment: 1 } },
     });
   }
+
+  /** [Simulator Phase 0] Xoá cứng — CHỈ dùng cho Device tổng hợp do fixtures
+   * service tạo ra. CheckInLog.deviceId là quan hệ tuỳ chọn (SET NULL) nên
+   * không bị chặn nếu còn log tham chiếu tới thiết bị này. */
+  deleteManyByIds(
+    ids: string[],
+    db: Db = this.prisma,
+  ): Promise<Prisma.BatchPayload> {
+    if (ids.length === 0) return Promise.resolve({ count: 0 });
+    return db.device.deleteMany({ where: { id: { in: ids } } });
+  }
 }

@@ -53,7 +53,7 @@ export default function RoomTypesPage() {
             <TableRow>
               <TableHead>Tên</TableHead>
               <TableHead>Mô tả</TableHead>
-              <TableHead>Thời gian TB (phút)</TableHead>
+              <TableHead>Thời gian TB (giây)</TableHead>
               <TableHead className="w-24 text-right">Hành động</TableHead>
             </TableRow>
           </TableHeader>
@@ -76,7 +76,7 @@ export default function RoomTypesPage() {
               <TableRow key={rt.id}>
                 <TableCell className="font-medium text-slate-900">{rt.name}</TableCell>
                 <TableCell>{rt.description ?? "—"}</TableCell>
-                <TableCell>{rt.avgProcessTime}</TableCell>
+                <TableCell>{rt.avgProcessTime} giây</TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-1">
                     <Button variant="ghost" size="sm" onClick={() => openEdit(rt)}>

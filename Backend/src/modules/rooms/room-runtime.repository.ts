@@ -25,6 +25,12 @@ export class RoomRuntimeRepository {
     return db.roomRuntime.findUnique({ where: { roomId } });
   }
 
+  /** [Phase 4] Dùng bởi SimulationAssertionsRunner — quét A6/A7 chỉ trên các phòng thuộc scenario đang chạy. */
+  findAllByRoomIds(roomIds: number[], db: Db = this.prisma): Promise<RoomRuntime[]> {
+    if (roomIds.length === 0) return Promise.resolve([]);
+    return db.roomRuntime.findMany({ where: { roomId: { in: roomIds } } });
+  }
+
   /**
    * Optimistic locking: chỉ ghi nếu version vẫn khớp — nếu 2 tiến trình
    * "start exam" cùng lúc claim 1 phòng, chỉ 1 trong 2 thành công

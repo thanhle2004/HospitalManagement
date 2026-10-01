@@ -7,6 +7,12 @@ export const UpdateRoomSchema = z
     name: z.string().min(1).optional(),
     sortOrder: z.coerce.number().int().optional(),
     roomTypeId: z.coerce.number().int().positive().optional(),
+    avgProcessTime: z.coerce
+      .number()
+      .int()
+      .positive('Thời gian xử lý override phải > 0 (đơn vị: giây)')
+      .nullable()
+      .optional(),
   })
   .strict();
 

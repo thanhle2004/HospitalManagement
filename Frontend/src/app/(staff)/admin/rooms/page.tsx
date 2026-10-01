@@ -67,6 +67,7 @@ export default function RoomsPage() {
               <TableHead>Số phòng</TableHead>
               <TableHead>Tên phòng</TableHead>
               <TableHead>Loại phòng</TableHead>
+              <TableHead>Thời gian TB (giây)</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead className="w-40 text-right">Hành động</TableHead>
             </TableRow>
@@ -74,14 +75,14 @@ export default function RoomsPage() {
           <TableBody>
             {rooms.isLoading && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-slate-500">
+                <TableCell colSpan={6} className="text-center text-slate-500">
                   Đang tải...
                 </TableCell>
               </TableRow>
             )}
             {rooms.data?.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-slate-500">
+                <TableCell colSpan={6} className="text-center text-slate-500">
                   Chưa có phòng khám nào
                 </TableCell>
               </TableRow>
@@ -91,6 +92,11 @@ export default function RoomsPage() {
                 <TableCell className="font-medium text-slate-900">{room.roomNumber}</TableCell>
                 <TableCell>{room.name}</TableCell>
                 <TableCell>{room.roomType.name}</TableCell>
+                <TableCell>
+                  {room.avgProcessTime !== null
+                    ? `${room.avgProcessTime} giây (override)`
+                    : `${room.roomType.avgProcessTime} giây (kế thừa)`}
+                </TableCell>
                 <TableCell>
                   <Badge variant={STATUS_BADGE[room.status]}>{STATUS_LABEL[room.status]}</Badge>
                 </TableCell>

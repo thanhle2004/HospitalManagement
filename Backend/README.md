@@ -219,6 +219,15 @@ Nếu số điện thoại đã tồn tại, backend phát session Patient. Nế
 npm run prisma:studio
 ```
 
+## Admin Patient Flow Simulator
+
+Simulator mặc định bị tắt (`SIMULATION_ENABLED=false`). Kiến trúc hiện tại
+dùng cùng Visit/Check-in/Doctor services và các bản ghi physical Room; vì vậy
+chỉ đặt `SIMULATION_ENABLED=true` cho một deployment và database dành riêng
+cho simulation, tuyệt đối không bật trên database nhận traffic thật. Database
+room lease ngăn hai SimulationRun cùng chiếm một phòng, nhưng không thay thế
+ranh giới database này.
+
 ## Testing và safety gate
 
 Unit/characterization test hiện không cần database; DB smoke/reconciliation chạy riêng trên MySQL:

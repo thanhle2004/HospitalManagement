@@ -106,6 +106,26 @@ enum OtpPurpose {
   LOGIN
 }
 
+// [MỚI — Admin Patient Flow Simulator, Phase 0] Vòng đời 1 lần chạy mô phỏng.
+enum SimulationRunStatus {
+  PENDING
+  PREPARING
+  RUNNING
+  PAUSED
+  DRAINING
+  COMPLETED
+  STOPPING
+  STOPPED
+  FAILED
+}
+
+// [MỚI] LOCKSTEP = chạy tuần tự, tất định (dùng để so sánh chiến lược routing);
+// CONCURRENT = phát sự kiện đồng thời qua DB thật (dùng để phát hiện race condition).
+enum SimulationMode {
+  LOCKSTEP
+  CONCURRENT
+}
+
 //////////////////////////////////////////////////
 // AUTH — STAFF (Admin / Doctor)
 //////////////////////////////////////////////////
@@ -273,6 +293,12 @@ model Patient {
 
   tokenVersion Int @default(0) @map("token_version")
 
+  // [MỚI — Simulator Phase 0] Chỉ set khi đây là bệnh nhân tổng hợp (synthetic)
+  // do Admin Patient Flow Simulator sinh ra. NULL với mọi bệnh nhân thật.
+  // Xoá SimulationRun sẽ cascade xoá toàn bộ Patient tổng hợp thuộc run đó.
+  simulationRunId String?        @map("simulation_run_id") @db.Char(36)
+  simulationRun   SimulationRun? @relation(fields: [simulationRunId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -284,6 +310,7 @@ model Patient {
 
   @@index([phone])
   @@index([patientTypeId])
+  @@index([simulationRunId])
   @@map("patients")
 }
 
@@ -297,6 +324,7 @@ model RoomType {
   name        String
   description String?
 
+  // Thời gian xử lý trung bình của loại phòng, tính bằng GIÂY.
   avgProcessTime Int @map("avg_process_time")
 
   deletedAt DateTime? @map("deleted_at")
@@ -324,6 +352,10 @@ model Room {
 
   roomTypeId Int @map("room_type_id")
 
+  // Thời gian xử lý trung bình override cho riêng phòng, tính bằng GIÂY.
+  // NULL = kế thừa RoomType.avgProcessTime.
+  avgProcessTime Int? @map("avg_process_time")
+
   status RoomStatus @default(ACTIVE)
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -336,6 +368,7 @@ model Room {
   runtime           RoomRuntime?
   visitAssignments  VisitAssignment[]
   queueEntries      RoomQueueEntry[]
+  simulationLease   SimulationRoomLease?
 
   @@index([roomTypeId, status])
   @@index([status])
@@ -539,6 +572,12 @@ model Visit {
 
   status VisitStatus @default(CREATED)
 
+  // [MỚI — Simulator Phase 0] Đánh dấu Visit tổng hợp, tách riêng khỏi
+  // Patient.simulationRunId vì lý thuyết 1 Visit tổng hợp luôn thuộc 1 Patient
+  // tổng hợp, nhưng lưu tường minh ở đây giúp teardown/lọc không cần join.
+  simulationRunId String?        @map("simulation_run_id") @db.Char(36)
+  simulationRun   SimulationRun? @relation(fields: [simulationRunId], references: [id], onDelete: Cascade)
+
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   startedAt   DateTime? @map("started_at")
@@ -552,6 +591,7 @@ model Visit {
 
   @@index([patientId])
   @@index([status])
+  @@index([simulationRunId])
   @@map("visits")
 }
 
@@ -729,4 +769,159 @@ model ActivityLog {
   @@index([entity, entityId])
   @@index([userId])
   @@map("activity_logs")
+}
+
+//////////////////////////////////////////////////
+// ADMIN PATIENT FLOW SIMULATOR
+//////////////////////////////////////////////////
+// [MỚI — Phase 0] 4 bảng phục vụ Admin Patient Flow Simulator (xem
+// docs/simulator-architecture.md §5.3). RoutingDecision là bảng DUY NHẤT
+// trong nhóm này có ý nghĩa với cả traffic thật (runId NULL) lẫn traffic mô
+// phỏng (runId trỏ về SimulationRun) — việc RoutingEngineService THỰC SỰ ghi
+// vào bảng này thuộc Phase 3, chưa làm ở Phase 0. 3 bảng còn lại
+// (SimulationRun/SimulationEvent/SimulationViolation) chỉ được engine của
+// simulator (Phase 1 trở đi) sử dụng.
+
+model SimulationRun {
+  id   String @id @default(uuid()) @db.Char(36)
+  name String
+
+  status SimulationRunStatus @default(PENDING)
+  mode   SimulationMode
+
+  seed Int
+
+  // Toàn bộ ScenarioConfig (JSON) — xem kiểu ScenarioConfig trong
+  // docs/simulator-architecture.md §3.3. Lưu nguyên vẹn để có thể replay.
+  config Json
+
+  startedAt    DateTime? @map("started_at")
+  finishedAt   DateTime? @map("finished_at")
+  simEndTimeMs Int?      @map("sim_end_time_ms")
+
+  // Snapshot metrics cuối cùng (đông cứng khi run kết thúc) — xem §10.
+  summary Json?
+
+  // ID của các fixture KHÔNG có quan hệ FK trực tiếp tới SimulationRun
+  // (User bác sĩ tổng hợp, Device QR tổng hợp, DoctorAssignment ca trực tổng
+  // hợp) — Patient/Visit tổng hợp thì dùng simulationRunId + cascade delete,
+  // xem field bên dưới. Hình dạng gợi ý:
+  // { doctorUserIds: string[], deviceIds: string[], doctorAssignmentIds: number[] }
+  fixtureIds Json? @map("fixture_ids")
+
+  createdBy String? @map("created_by") @db.Char(36)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  patients   Patient[]
+  visits     Visit[]
+  events     SimulationEvent[]
+  violations SimulationViolation[]
+  decisions  RoutingDecision[]
+  roomLeases SimulationRoomLease[]
+
+  @@index([status])
+  @@index([createdBy])
+  @@map("simulation_runs")
+}
+
+// [MỚI] Nhật ký sự kiện tất định của 1 lần chạy — nguồn sự thật cho mọi
+// metric (KHÔNG dùng timestamp thật của DB, xem lý do ở §2.7/§10). Ghi theo
+// batch từ bộ nhớ đệm của SimulationEngine, KHÔNG ghi đồng bộ từng dòng khi
+// đang chạy (xem cảnh báo write-volume ở §5.3).
+model SimulationEvent {
+  id BigInt @id @default(autoincrement())
+
+  runId String @map("run_id") @db.Char(36)
+
+  simTimeMs Int @map("sim_time_ms")
+  // Bộ đếm tăng dần trong phạm vi 1 run — đảm bảo thứ tự phát lại chính xác
+  // khi nhiều sự kiện trùng simTimeMs.
+  seq Int
+
+  type String
+
+  visitId     String? @map("visit_id") @db.Char(36)
+  visitStepId Int?    @map("visit_step_id")
+  roomId      Int?    @map("room_id")
+
+  payload Json?
+
+  run SimulationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, simTimeMs])
+  @@index([runId, visitId])
+  @@map("simulation_events")
+}
+
+// [MỚI] 1 dòng = 1 lần vi phạm bất biến (xem danh sách A1-A13 trong
+// docs/simulator-architecture.md §11) bị SimulationAssertions phát hiện.
+model SimulationViolation {
+  id BigInt @id @default(autoincrement())
+
+  runId String @map("run_id") @db.Char(36)
+
+  simTimeMs Int    @map("sim_time_ms")
+  rule      String
+  severity  String // ERROR | WARNING
+
+  visitId     String? @map("visit_id") @db.Char(36)
+  visitStepId Int?    @map("visit_step_id")
+  roomId      Int?    @map("room_id")
+
+  // Trạng thái các bản ghi liên quan tại thời điểm phát hiện — phục vụ điều
+  // tra thủ công, không phải để máy đọc lại.
+  stateSnapshot Json @map("state_snapshot")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  run SimulationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, rule])
+  @@map("simulation_violations")
+}
+
+// [MỚI] Bảng PRODUCTION, không chỉ dành cho simulator — Step 6 của spec
+// ("Routing Decision Log") yêu cầu MỌI quyết định routing (kể cả traffic
+// thật) đều phải quan sát được. runId NULL nghĩa là traffic thật;
+// RoutingEngineService.assignRoom() sẽ được sửa ở Phase 3 để ghi vào đây,
+// KHÔNG sửa ở Phase 0 — bảng này hiện chưa được code nào ghi vào.
+model RoutingDecision {
+  id BigInt @id @default(autoincrement())
+
+  visitStepId Int     @map("visit_step_id")
+  runId       String? @map("run_id") @db.Char(36)
+
+  strategy       String
+  selectedRoomId Int?    @map("selected_room_id")
+  // Ví dụ: MIN_ESTIMATED_WAITING_TIME, TIE_BREAK_SORT_ORDER, NO_ELIGIBLE_ROOM
+  reason         String
+
+  // Snapshot toàn bộ phòng đủ điều kiện tại thời điểm quyết định:
+  // [{ roomId, inServiceCount, waitingCount, estimatedWaitingSeconds }]
+  candidates Json
+
+  decidedAt DateTime @default(now()) @map("decided_at")
+  simTimeMs Int?     @map("sim_time_ms")
+
+  run SimulationRun? @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([visitStepId])
+  @@index([runId, selectedRoomId])
+  @@map("routing_decisions")
+}
+
+// A physical room is shared production state (queue + RoomRuntime), so at
+// most one SimulationRun may own it at a time.  The primary key on roomId is
+// the cross-process lease; deleting either the room or run releases it too.
+model SimulationRoomLease {
+  roomId Int    @id @map("room_id")
+  runId  String @map("run_id") @db.Char(36)
+
+  acquiredAt DateTime @default(now()) @map("acquired_at")
+
+  room Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  run  SimulationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@map("simulation_room_leases")
 }

@@ -18,6 +18,11 @@ const schema = z.object({
   name: z.string().min(1, "Tên phòng không được để trống"),
   sortOrder: z.coerce.number().int(),
   roomTypeId: z.coerce.number().int().positive("Vui lòng chọn loại phòng"),
+  avgProcessTime: z.coerce
+    .number()
+    .int()
+    .positive("Phải > 0 (đơn vị: giây)")
+    .nullable(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -48,6 +53,7 @@ export function RoomFormDialog({ open, onOpenChange, room }: RoomFormDialogProps
         name: room?.name ?? "",
         sortOrder: room?.sortOrder ?? 0,
         roomTypeId: room?.roomType.id ?? undefined,
+        avgProcessTime: room?.avgProcessTime ?? null,
       });
     }
   }, [open, room, reset]);
@@ -96,6 +102,22 @@ export function RoomFormDialog({ open, onOpenChange, room }: RoomFormDialogProps
           <div className="space-y-1.5">
             <Label htmlFor="sortOrder">Thứ tự hiển thị</Label>
             <Input id="sortOrder" type="number" {...register("sortOrder")} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="avgProcessTime">Thời gian khám override (giây, tuỳ chọn)</Label>
+            <Input
+              id="avgProcessTime"
+              type="number"
+              min={1}
+              placeholder="Để trống để dùng thời gian của loại phòng"
+              {...register("avgProcessTime", {
+                setValueAs: (value) => (value === "" ? null : Number(value)),
+              })}
+            />
+            {errors.avgProcessTime && (
+              <p className="text-xs text-red-600">{errors.avgProcessTime.message}</p>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
