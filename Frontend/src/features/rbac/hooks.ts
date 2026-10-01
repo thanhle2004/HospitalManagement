@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api-client";
 import { toast } from "@/lib/toast-store";
 import { rbacApi } from "./api";
-import type { CreateRolePayload } from "./types";
+import type { CreateRolePayload, CreateStaffPayload } from "./types";
 
 export function useRoles() {
   return useQuery({ queryKey: ["rbac", "roles"], queryFn: rbacApi.listRoles });
@@ -51,5 +51,29 @@ export function useRevokeRole() {
       toast.success("Đã thu hồi vai trò");
     },
     onError: (error) => toast.error(error instanceof ApiError ? error.message : "Thu hồi vai trò thất bại"),
+  });
+}
+
+export function useCreateStaff() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateStaffPayload) => rbacApi.createStaff(payload),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["rbac", "staff"] });
+      toast.success("Đã tạo tài khoản nhân viên");
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Tạo tài khoản thất bại"),
+  });
+}
+
+export function useUpdateStaffStatus() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, status, reason }: { userId: string; status: "ACTIVE" | "INACTIVE" | "LOCKED"; reason: string }) => rbacApi.updateStaffStatus(userId, status, reason),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: ["rbac", "staff"] });
+      toast.success("Đã cập nhật trạng thái tài khoản");
+    },
+    onError: (error) => toast.error(error instanceof ApiError ? error.message : "Cập nhật trạng thái thất bại"),
   });
 }

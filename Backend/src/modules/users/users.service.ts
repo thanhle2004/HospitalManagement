@@ -13,6 +13,14 @@ import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserResponseDto } from './dto/user-response.dto';
+import { CreateStaffDto, UpdateStaffStatusDto } from './dto/create-staff.dto';
+import { ActivityLogService } from '../activity-log/activity-log.service';
+
+export interface StaffAuditContext {
+  requestId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -21,6 +29,7 @@ export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly prisma: PrismaService,
+    private readonly activityLogService: ActivityLogService,
   ) {}
 
   /**
@@ -42,6 +51,9 @@ export class UsersService {
           email: dto.email,
           passwordHash,
           role: UserRole.DOCTOR,
+          roleAssignments: {
+            create: { role: { connect: { code: UserRole.DOCTOR } } },
+          },
         },
         tx,
       );
@@ -62,6 +74,83 @@ export class UsersService {
     });
 
     return UsersMapper.toResponseDto(user!);
+  }
+
+  async createStaff(
+    actorId: string,
+    dto: CreateStaffDto,
+    context: StaffAuditContext = {},
+  ): Promise<UserResponseDto> {
+    if (await this.usersRepository.findByEmail(dto.email)) {
+      throw new ConflictException('Email đã được sử dụng');
+    }
+    const passwordHash = await bcrypt.hash(dto.password, PASSWORD_SALT_ROUNDS);
+    const user = await this.prisma.transaction(async (tx) => {
+      const created = await this.usersRepository.createStaff(
+        {
+          email: dto.email,
+          passwordHash,
+          role: dto.role,
+          roleAssignments: {
+            create: {
+              role: { connect: { code: dto.role } },
+              assignedBy: { connect: { id: actorId } },
+            },
+          },
+        },
+        tx,
+      );
+      await this.usersRepository.createProfile(
+        {
+          user: { connect: { id: created.id } },
+          fullName: dto.fullName,
+          phone: dto.phone,
+        },
+        tx,
+      );
+      await this.activityLogService.log(
+        {
+          userId: actorId,
+          action: 'STAFF_CREATED',
+          entity: 'User',
+          entityId: created.id,
+          metadata: { requestId: context.requestId, role: dto.role, reason: dto.reason },
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        },
+        tx,
+      );
+      return this.usersRepository.findById(created.id, tx);
+    });
+    return UsersMapper.toResponseDto(user!);
+  }
+
+  async updateStaffStatus(
+    actorId: string,
+    userId: string,
+    dto: UpdateStaffStatusDto,
+    context: StaffAuditContext = {},
+  ): Promise<UserResponseDto> {
+    if (actorId === userId && dto.status !== UserStatus.ACTIVE) {
+      throw new ConflictException('Không thể tự khóa hoặc vô hiệu hóa tài khoản đang dùng');
+    }
+    const current = await this.findOrThrow(userId);
+    await this.prisma.transaction(async (tx) => {
+      await this.usersRepository.updateStatus(userId, dto.status, tx);
+      await this.activityLogService.log(
+        {
+          userId: actorId,
+          action: 'STAFF_STATUS_CHANGED',
+          entity: 'User',
+          entityId: userId,
+          metadata: { requestId: context.requestId, before: current.status, after: dto.status, reason: dto.reason },
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        },
+        tx,
+      );
+    });
+    return UsersMapper.toResponseDto((await this.usersRepository.findById(userId))!);
   }
 
   async listDoctors(): Promise<UserResponseDto[]> {

@@ -34,11 +34,22 @@ export interface CreateRolePayload {
 export interface StaffRoleSummary {
   id: string;
   email: string;
-  legacyRole: "ADMIN" | "DOCTOR";
+  legacyRole: StaffRoleCode;
   status: "ACTIVE" | "INACTIVE" | "LOCKED";
   fullName: string | null;
   phone: string | null;
   lastLoginAt: string | null;
   createdAt: string;
   roles: string[];
+}
+
+export type StaffRoleCode = "ADMIN" | "DOCTOR" | "NURSE" | "RECEPTIONIST" | "LAB_TECHNICIAN" | "PHARMACIST" | "CASHIER";
+
+export interface CreateStaffPayload {
+  email: string;
+  password: string;
+  fullName: string;
+  phone?: string;
+  role: StaffRoleCode;
+  reason: string;
 }
