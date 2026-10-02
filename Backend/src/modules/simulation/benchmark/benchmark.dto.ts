@@ -9,11 +9,13 @@ export const BenchmarkAlgorithmSchema = z.enum([
   'LEAST_UTILISED',
 ]);
 export const WorkflowDependencySchema = z.enum(['INDEPENDENT', 'SEQUENTIAL', 'PARTIAL']);
+export const ProcessingProfileSchema = z.enum(['HOMOGENEOUS', 'HETEROGENEOUS']);
 
 const BenchmarkBaseSchema = z.object({
   patientCount: z.coerce.number().int().min(1).max(1000),
   workflow: WorkflowDependencySchema,
   seed: z.coerce.number().int().min(0).max(2_147_483_647).default(20261002),
+  processingProfile: ProcessingProfileSchema.default('HETEROGENEOUS'),
 });
 
 export const RunBenchmarkSchema = BenchmarkBaseSchema.extend({

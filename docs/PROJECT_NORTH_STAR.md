@@ -1,7 +1,7 @@
 # Hospital Management — Project North Star
 
 Ngày checkpoint: **2026-10-01**  
-Baseline đánh giá: **Foundation closed tại Slice 1H; owner-approved Simulation Benchmark exception hoàn tất, roadmap trở lại 2A**
+Baseline đánh giá: **Foundation closed tại Slice 1H; business roadmap PAUSED by owner for routing-algorithm research**
 Trạng thái: **tài liệu canonical cấp dự án; phải đọc trước mọi slice mới**
 
 ## 1. System objective
@@ -275,7 +275,7 @@ Slice 1F-A (complete)
 
 Sau Slice 1H, không tự động thêm platform/foundation slice mới trước business roadmap. Foundation work chỉ được chen trước business slice kế tiếp khi **đồng thời** có concrete blocker được chứng minh từ implementation hiện tại, blocker không thể xử lý an toàn bên trong business slice, impact/dependency được document và owner phê duyệt. Modernization, cleanup hoặc infrastructure perfection tự thân không phải lý do trì hoãn core business workflow.
 
-Simulation Benchmark hoàn tất ngày 2026-10-02 là exception tạm thời đã được owner phê duyệt cho thesis experiment/demo. Exception không mở lại Foundation: Production Workflow Simulator vẫn là regression harness, Pure Algorithm Benchmark là path in-memory riêng, routing core/default/candidate construction/transaction/state không đổi. Roadmap sau exception quay lại **Slice 2A Appointment Foundation**.
+Simulation Benchmark và Research Benchmark Correction ngày 2026-10-02 là exception tạm thời được owner phê duyệt cho thesis research. Exception không mở lại Foundation: Production Workflow Simulator vẫn là regression harness, Pure Algorithm Benchmark là path in-memory riêng, routing core/default/candidate construction/transaction/state không đổi. Business roadmap, gồm **Slice 2A Appointment Foundation**, đang **PAUSED by owner for routing-algorithm research** cho tới khi owner review và chốt experimental protocol.
 
 ### Core business workflow
 
@@ -341,4 +341,4 @@ Sau khi hoàn thành:
 - Queue mutation audit atomicity cần routing proposal riêng vì thuộc frozen core; không phải blocker để bắt đầu 2A.
 - Migrate toàn bộ handwritten frontend contract hoặc mở rộng browser matrix không phải blocker cho 2A; thực hiện incrementally khi business slice tạo/chạm contract.
 
-**Trạng thái:** Slice 1H hoàn tất và **FOUNDATION CLOSED**. Dừng trước Slice 2A; không tự động triển khai khi chưa có lệnh/phê duyệt tiếp theo và không tạo thêm Slice 1I/1J.
+**Trạng thái:** Slice 1H hoàn tất và **FOUNDATION CLOSED**. Business roadmap **PAUSED by owner for routing-algorithm research**; dừng trước Slice 2A, không tự động triển khai business slice, không tạo thêm Slice 1I/1J và không mở rộng benchmark sang multi-seed/statistical platform trước owner review.

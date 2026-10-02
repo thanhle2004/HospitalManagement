@@ -6,16 +6,20 @@ export type BenchmarkAlgorithm =
   | 'LEAST_UTILISED';
 
 export type WorkflowDependencyType = 'INDEPENDENT' | 'SEQUENTIAL' | 'PARTIAL';
+export type ProcessingProfile = 'HOMOGENEOUS' | 'HETEROGENEOUS';
 
 export interface BenchmarkConfig {
   patientCount: number;
   workflow: WorkflowDependencyType;
   seed: number;
+  processingProfile: ProcessingProfile;
 }
 
 export interface BenchmarkStepDefinition {
   id: string;
   dependencies: string[];
+  expectedAverageProcessTimeSeconds: number;
+  rooms: string[];
 }
 
 export interface BenchmarkPatient {
@@ -28,12 +32,15 @@ export interface BenchmarkRoomDefinition {
   id: string;
   serviceId: string;
   sortOrder: number;
+  expectedAverageProcessTimeSeconds: number;
 }
 
 export interface BenchmarkScenario {
   schemaVersion: 1;
+  scenarioId: string;
   seed: number;
   workflow: WorkflowDependencyType;
+  processingProfile: ProcessingProfile;
   steps: BenchmarkStepDefinition[];
   rooms: BenchmarkRoomDefinition[];
   patients: BenchmarkPatient[];
@@ -70,6 +77,9 @@ export interface BenchmarkRunResult {
   algorithmLabel: string;
   seed: number;
   workflow: WorkflowDependencyType;
+  processingProfile: ProcessingProfile;
+  scenarioId: string;
+  services: BenchmarkStepDefinition[];
   patientCount: number;
   simulationTimeMs: number;
   metrics: BenchmarkMetrics;

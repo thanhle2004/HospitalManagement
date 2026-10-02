@@ -1,44 +1,58 @@
-# Simulation Architecture — Workflow Regression and Algorithm Benchmark
+# Simulation Architecture — Workflow Regression and Research Benchmark
 
 Ngày cập nhật: **2026-10-02**
 
 ## Hai simulation path độc lập
 
-### Production Workflow Simulator
+Production Workflow Simulator dùng production services, MySQL/Prisma, Visit/routing/check-in/Doctor workflow và concurrency diagnostics. Đây là integration/regression harness.
 
-Simulator hiện hữu tiếp tục dùng production services, MySQL/Prisma, Visit/routing/check-in/Doctor workflow và concurrency diagnostics. Mục đích của path này là integration/regression; nó không phải runner để đổi production routing strategy.
+Pure Algorithm Benchmark (`POST /simulation/benchmark/run|compare`) chạy in-memory với logical IDs, virtual time và seeded RNG. Nó không tạo production record. `SYSTEM` resolve trực tiếp tới production `MinEstimatedWaitingTimeStrategy`; benchmark không có bản copy của comparator này.
 
-### Pure Algorithm Benchmark
+> The benchmark shares the production room-selection strategy implementation but does not reproduce the complete production routing pipeline.
 
-Benchmark tại `POST /simulation/benchmark/run` và `POST /simulation/benchmark/compare` chạy hoàn toàn in-memory, không tạo Patient/Visit/Room/Device/Staff hoặc simulation record trong database. Scenario dùng logical IDs, virtual time và seeded RNG.
+## Scenario và processing profiles
 
-> The System Algorithm benchmark uses the same production `MinEstimatedWaitingTimeStrategy` implementation for room selection. The benchmark does not reproduce the entire production routing pipeline; candidate projection and execution lifecycle are simulated in-memory.
+Mỗi Service định nghĩa dependencies, expected average processing time và hai room. Business assumption bắt buộc: các room thuộc cùng Service/RoomType dùng cùng expected processing time.
 
-`SYSTEM` được resolve trực tiếp thành production class `MinEstimatedWaitingTimeStrategy`; không tồn tại implementation comparator/ETA thứ hai. Benchmark còn hỗ trợ `SHORTEST_QUEUE`, `ROUND_ROBIN`, seeded `RANDOM` và `LEAST_UTILISED`. Mỗi algorithm/run có strategy instance mới nên state của Round Robin/Least Utilised không rò giữa run.
+- `HOMOGENEOUS`: A/B/C/D/E đều 300 giây. Đây là control condition; với cùng candidate set và tie-break tương thích, `SYSTEM` và `SHORTEST_QUEUE` có cùng objective ordering.
+- `HETEROGENEOUS`: A=300, B=600, C=420, D=900, E=240 giây. Khác biệt chỉ nằm giữa service, không nằm giữa room cùng service.
 
-## Deterministic scenario
+Expected time là thông tin strategy biết. SYSTEM tối thiểu hóa proxy:
 
-- Patient ID: `P001`, `P002`, ...; arrival cách nhau 10 giây virtual.
-- Mỗi service có hai room logical: `ROOM_A_1`, `ROOM_A_2`, ...
-- Service duration được materialize một lần từ seed và patient/service key; compare clone cùng immutable scenario cho mọi algorithm.
-- Không dùng wall clock, production database ID hoặc uncontrolled `Math.random()` trong benchmark semantics.
-- Response event trace được giới hạn 2.000 entries; metrics vẫn tính trên toàn run tối đa 1.000 patients.
+```text
+estimatedWaitingSeconds =
+  (inServiceCount + waitingCount)
+  × expectedAverageProcessTimeSeconds(service)
+```
 
-Workflow templates:
+Actual duration là workload ẩn được materialize một lần cho mỗi `(seed, patient, service)` theo uniform range `[80%, 120%]` quanh expected time, làm tròn tới giây. Nó không phụ thuộc room và strategy không được nhìn trước actual duration.
 
-- `INDEPENDENT`: A, B, C, D không phụ thuộc nhau.
+Patient đến cách nhau 10 giây virtual. Workflow giữ nguyên:
+
+- `INDEPENDENT`: A, B, C, D cùng sẵn sàng.
 - `SEQUENTIAL`: A → B → C → D.
-- `PARTIAL`: A/B song song; C phụ thuộc A; D phụ thuộc B; E phụ thuộc C và D.
+- `PARTIAL`: A → C và B → D, sau đó C/D hội tụ tại E.
 
-## In-memory lifecycle và metrics
+Một patient chỉ có một queued/in-service step tại một thời điểm; khi nhiều step READY, chúng cùng xuất hiện trong candidate set. Điều này cho phép heterogeneous service characteristics ảnh hưởng objective mà không tạo room heterogeneity.
 
-Benchmark materialize patient/step/dependency/room/queue/active-service state tối thiểu. Nó unlock dependency, project `RoutingCandidate[]`, gọi shared strategy, enqueue FIFO, start/finish service theo virtual time và hoàn tất patient khi mọi required step completed.
+## Reproducibility và fair compare
 
-Primary metrics gồm average/P95/max waiting time, average length of stay, throughput per simulated hour, average room utilization và completed patient count. UI không tạo composite score và chỉ highlight System Algorithm để nhận diện, không hard-code winner.
+Cùng config + seed tạo đúng cùng materialized scenario, actual durations, deterministic result và SHA-256-derived `SCN-…` fingerprint. Compare materialize scenario một lần rồi deep-clone cho mọi algorithm; arrival, workflow, profile và durations giống nhau. Không dùng wall clock hoặc uncontrolled `Math.random()`.
 
-## Boundary và limitations
+Mỗi run dùng strategy instance mới. Round Robin dùng stable service/step identity cùng eligible-room set, vì vậy stable two-room set quay `1 → 2 → 1 → 2`; transient per-decision identity cũ đã làm vòng quay reset. `LEAST_UTILISED` vẫn là observation-based busy ratio tại các routing decision, không phải time-weighted utilization và chưa được redesign.
 
-- Candidate projection là benchmark semantics, không copy hoặc thay thế production candidate construction.
-- Benchmark chứng minh dùng cùng production **room-selection strategy implementation**, không chứng minh tương đương toàn bộ routing pipeline/transaction/state machine.
-- `LEAST_UTILISED` giữ nguyên semantics observation-ratio của production strategy class; đó không phải time-weighted utilization.
-- Production routing configuration/default, transaction, claim/recheck, RoutingQueue, VisitAssignment, VisitToken, check-in, RoomRuntime và events không đổi.
+## Metric definitions
+
+- **Average/P95/Max Step Waiting Time**: phân phối trên step, `startedAt - readyAt`.
+- **Average Length of Stay**: patient-level, `patient completion - patient arrival`.
+- **Throughput**: `completed patients / total simulated elapsed time`; đây là observed finite-run completion throughput, không phải steady-state hospital capacity.
+- **Room Utilization**: từng room `busy time / simulation elapsed time`; aggregate là trung bình các room. Đây là time-weighted result metric, độc lập với observation heuristic của Least Utilised.
+- **Completed Patient Count**: số patient hoàn tất toàn bộ required steps.
+
+Event trace response giới hạn 2.000 entries; metrics vẫn tính toàn run (tối đa 1.000 patients).
+
+## Research boundary và limitations
+
+UI hiển thị patient count, workflow graph, processing profile, expected time/rooms, seed và scenario fingerprint; System chỉ được nhận diện là production algorithm, không được gắn nhãn winner. Slice này không có custom tuning, multi-seed replication, confidence interval, significance testing hoặc composite score.
+
+Candidate projection và lifecycle là benchmark semantics, không phải production candidate construction/transaction/state machine. Production `RoutingEngineService`, default strategy, priority/FIFO, RoutingQueue, VisitAssignment, VisitToken, RoomRuntime, QR/check-in và events không đổi.

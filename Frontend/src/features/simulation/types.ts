@@ -197,11 +197,13 @@ export type BenchmarkRunResult = components["schemas"]["BenchmarkRunEnvelopeDto"
 export type BenchmarkCompareResult = components["schemas"]["BenchmarkCompareEnvelopeDto"]["data"];
 export type BenchmarkAlgorithm = BenchmarkRunResult["algorithm"];
 export type BenchmarkWorkflow = BenchmarkRunResult["workflow"];
+export type BenchmarkProcessingProfile = BenchmarkRunResult["processingProfile"];
 
 export interface BenchmarkRequest {
   patientCount: number;
   workflow: BenchmarkWorkflow;
   seed: number;
+  processingProfile: BenchmarkProcessingProfile;
 }
 
 export type BenchmarkMetrics = BenchmarkRunResult["metrics"];

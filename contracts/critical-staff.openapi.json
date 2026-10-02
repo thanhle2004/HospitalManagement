@@ -271,17 +271,64 @@
                   "seed": {
                     "type": "integer"
                   },
+                  "processingProfile": {
+                    "type": "string",
+                    "enum": [
+                      "HOMOGENEOUS",
+                      "HETEROGENEOUS"
+                    ]
+                  },
                   "schemaVersion": {
                     "type": "number",
                     "minimum": 1,
                     "maximum": 1
+                  },
+                  "scenarioId": {
+                    "type": "string"
+                  },
+                  "services": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "dependencies": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "expectedAverageProcessTimeSeconds": {
+                          "type": "number",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "rooms": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "dependencies",
+                        "expectedAverageProcessTimeSeconds",
+                        "rooms"
+                      ]
+                    }
                   }
                 },
                 "required": [
                   "patientCount",
                   "workflow",
                   "seed",
-                  "schemaVersion"
+                  "processingProfile",
+                  "schemaVersion",
+                  "scenarioId",
+                  "services"
                 ]
               },
               "results": {
@@ -318,6 +365,50 @@
                     },
                     "simulationTimeMs": {
                       "type": "number"
+                    },
+                    "processingProfile": {
+                      "type": "string",
+                      "enum": [
+                        "HOMOGENEOUS",
+                        "HETEROGENEOUS"
+                      ]
+                    },
+                    "scenarioId": {
+                      "type": "string"
+                    },
+                    "services": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "dependencies": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "expectedAverageProcessTimeSeconds": {
+                            "type": "number",
+                            "minimum": 0,
+                            "exclusiveMinimum": true
+                          },
+                          "rooms": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "dependencies",
+                          "expectedAverageProcessTimeSeconds",
+                          "rooms"
+                        ]
+                      }
                     },
                     "metrics": {
                       "type": "object",
@@ -428,6 +519,9 @@
                     "workflow",
                     "patientCount",
                     "simulationTimeMs",
+                    "processingProfile",
+                    "scenarioId",
+                    "services",
                     "metrics",
                     "rooms",
                     "events"
@@ -496,6 +590,50 @@
               },
               "simulationTimeMs": {
                 "type": "number"
+              },
+              "processingProfile": {
+                "type": "string",
+                "enum": [
+                  "HOMOGENEOUS",
+                  "HETEROGENEOUS"
+                ]
+              },
+              "scenarioId": {
+                "type": "string"
+              },
+              "services": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "dependencies": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "expectedAverageProcessTimeSeconds": {
+                      "type": "number",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "rooms": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "dependencies",
+                    "expectedAverageProcessTimeSeconds",
+                    "rooms"
+                  ]
+                }
               },
               "metrics": {
                 "type": "object",
@@ -606,6 +744,9 @@
               "workflow",
               "patientCount",
               "simulationTimeMs",
+              "processingProfile",
+              "scenarioId",
+              "services",
               "metrics",
               "rooms",
               "events"
@@ -645,6 +786,14 @@
             "maximum": 2147483647,
             "exclusiveMaximum": false,
             "default": 20261002
+          },
+          "processingProfile": {
+            "type": "string",
+            "enum": [
+              "HOMOGENEOUS",
+              "HETEROGENEOUS"
+            ],
+            "default": "HETEROGENEOUS"
           },
           "algorithms": {
             "type": "array",
@@ -784,6 +933,14 @@
             "maximum": 2147483647,
             "exclusiveMaximum": false,
             "default": 20261002
+          },
+          "processingProfile": {
+            "type": "string",
+            "enum": [
+              "HOMOGENEOUS",
+              "HETEROGENEOUS"
+            ],
+            "default": "HETEROGENEOUS"
           },
           "algorithm": {
             "type": "string",

@@ -13,7 +13,7 @@ interface StepState { status: StepStatus; readyAtMs: number; startedAtMs?: numbe
 interface PatientState { completedAtMs?: number; steps: Map<string, StepState>; }
 interface QueueItem { patientId: string; serviceId: string; readyAtMs: number; sequence: number; }
 interface RoomState {
-  id: string; serviceId: string; sortOrder: number; queue: QueueItem[];
+  id: string; serviceId: string; sortOrder: number; expectedAverageProcessTimeSeconds: number; queue: QueueItem[];
   active?: QueueItem & { endsAtMs: number }; busyTimeMs: number; patientsServed: number;
 }
 
@@ -36,7 +36,6 @@ export function runBenchmarkScenario(
   const lengthsOfStay: number[] = [];
   let now = 0;
   let sequence = 0;
-  let numericStepId = 1;
 
   const emit = (event: BenchmarkEvent) => { if (events.length < 2_000) events.push(event); };
   const patientById = new Map(scenario.patients.map((patient) => [patient.id, patient]));
@@ -57,34 +56,38 @@ export function runBenchmarkScenario(
     for (const patient of scenario.patients) {
       const state = patients.get(patient.id);
       if (!state) continue;
-      for (let displayOrder = 0; displayOrder < scenario.steps.length; displayOrder += 1) {
-        const definition = scenario.steps[displayOrder];
-        const step = state.steps.get(definition.id)!;
-        if (step.status !== 'READY') continue;
-        const eligible = rooms.filter((room) => room.serviceId === definition.id);
-        const visitStepId = numericStepId++;
-        const candidates: RoutingCandidate[] = eligible.map((room) => {
+      if ([...state.steps.values()].some((step) => step.status === 'QUEUED' || step.status === 'IN_SERVICE')) continue;
+      const readyDefinitions = scenario.steps.filter(
+        (definition) => state.steps.get(definition.id)!.status === 'READY',
+      );
+      if (readyDefinitions.length === 0) continue;
+      const candidates: RoutingCandidate[] = readyDefinitions.flatMap((definition) => {
+        const displayOrder = scenario.steps.findIndex((step) => step.id === definition.id);
+        return rooms.filter((room) => room.serviceId === definition.id).map((room) => {
           const waitingCount = room.queue.length;
           const inServiceCount = room.active ? 1 : 0;
-          const averageSeconds = 90;
           return {
-            visitStepId,
+            // Stable service/step identity is required by stateful experimental strategies.
+            visitStepId: displayOrder + 1,
             visitStepDisplayOrder: displayOrder + 1,
             room: { id: room.sortOrder, roomNumber: room.id, sortOrder: room.sortOrder },
             inServiceCount,
             waitingCount,
-            effectiveAverageProcessTimeSeconds: averageSeconds,
-            estimatedWaitingSeconds: (inServiceCount + waitingCount) * averageSeconds,
+            effectiveAverageProcessTimeSeconds: definition.expectedAverageProcessTimeSeconds,
+            estimatedWaitingSeconds:
+              (inServiceCount + waitingCount) * definition.expectedAverageProcessTimeSeconds,
           };
         });
-        const decision = strategy.select(candidates, {
-          random: () => rng.float(`routing:${algorithm}`),
-        });
-        const selected = eligible.find((room) => room.sortOrder === decision.selectedRoomId)!;
-        selected.queue.push({ patientId: patient.id, serviceId: definition.id, readyAtMs: step.readyAtMs, sequence: sequence++ });
-        step.status = 'QUEUED';
-        emit({ simTimeMs: now, type: 'QUEUED', patientId: patient.id, serviceId: definition.id, roomId: selected.id });
-      }
+      });
+      const decision = strategy.select(candidates, {
+        random: () => rng.float(`routing:${algorithm}`),
+      });
+      const definition = scenario.steps[decision.selectedVisitStepId - 1];
+      const step = state.steps.get(definition.id)!;
+      const selected = rooms.find((room) => room.sortOrder === decision.selectedRoomId)!;
+      selected.queue.push({ patientId: patient.id, serviceId: definition.id, readyAtMs: step.readyAtMs, sequence: sequence++ });
+      step.status = 'QUEUED';
+      emit({ simTimeMs: now, type: 'QUEUED', patientId: patient.id, serviceId: definition.id, roomId: selected.id });
     }
   };
 
@@ -152,6 +155,9 @@ export function runBenchmarkScenario(
     algorithmLabel: BENCHMARK_ALGORITHM_LABELS[algorithm],
     seed: scenario.seed,
     workflow: scenario.workflow,
+    processingProfile: scenario.processingProfile,
+    scenarioId: scenario.scenarioId,
+    services: scenario.steps,
     patientCount: scenario.patients.length,
     simulationTimeMs: now,
     metrics: {

@@ -88,7 +88,16 @@ export interface components {
                     /** @enum {string} */
                     workflow: "INDEPENDENT" | "SEQUENTIAL" | "PARTIAL";
                     seed: number;
+                    /** @enum {string} */
+                    processingProfile: "HOMOGENEOUS" | "HETEROGENEOUS";
                     schemaVersion: number;
+                    scenarioId: string;
+                    services: {
+                        id: string;
+                        dependencies: string[];
+                        expectedAverageProcessTimeSeconds: number;
+                        rooms: string[];
+                    }[];
                 };
                 results: {
                     /** @enum {string} */
@@ -99,6 +108,15 @@ export interface components {
                     workflow: "INDEPENDENT" | "SEQUENTIAL" | "PARTIAL";
                     patientCount: number;
                     simulationTimeMs: number;
+                    /** @enum {string} */
+                    processingProfile: "HOMOGENEOUS" | "HETEROGENEOUS";
+                    scenarioId: string;
+                    services: {
+                        id: string;
+                        dependencies: string[];
+                        expectedAverageProcessTimeSeconds: number;
+                        rooms: string[];
+                    }[];
                     metrics: {
                         averageWaitingTimeMs: number;
                         p95WaitingTimeMs: number;
@@ -140,6 +158,15 @@ export interface components {
                 workflow: "INDEPENDENT" | "SEQUENTIAL" | "PARTIAL";
                 patientCount: number;
                 simulationTimeMs: number;
+                /** @enum {string} */
+                processingProfile: "HOMOGENEOUS" | "HETEROGENEOUS";
+                scenarioId: string;
+                services: {
+                    id: string;
+                    dependencies: string[];
+                    expectedAverageProcessTimeSeconds: number;
+                    rooms: string[];
+                }[];
                 metrics: {
                     averageWaitingTimeMs: number;
                     p95WaitingTimeMs: number;
@@ -172,6 +199,11 @@ export interface components {
             workflow: "INDEPENDENT" | "SEQUENTIAL" | "PARTIAL";
             /** @default 20261002 */
             seed: number;
+            /**
+             * @default HETEROGENEOUS
+             * @enum {string}
+             */
+            processingProfile: "HOMOGENEOUS" | "HETEROGENEOUS";
             algorithms: ("SYSTEM" | "SHORTEST_QUEUE" | "ROUND_ROBIN" | "RANDOM" | "LEAST_UTILISED")[];
         };
         PaginatedActivityLogEnvelopeDto: {
@@ -202,6 +234,11 @@ export interface components {
             workflow: "INDEPENDENT" | "SEQUENTIAL" | "PARTIAL";
             /** @default 20261002 */
             seed: number;
+            /**
+             * @default HETEROGENEOUS
+             * @enum {string}
+             */
+            processingProfile: "HOMOGENEOUS" | "HETEROGENEOUS";
             /** @enum {string} */
             algorithm: "SYSTEM" | "SHORTEST_QUEUE" | "ROUND_ROBIN" | "RANDOM" | "LEAST_UTILISED";
         };

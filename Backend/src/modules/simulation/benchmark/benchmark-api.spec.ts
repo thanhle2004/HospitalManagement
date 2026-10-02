@@ -25,20 +25,22 @@ describe('Benchmark API', () => {
   afterAll(() => app.close());
 
   it('runs one deterministic benchmark', async () => {
-    const payload = { patientCount: 5, workflow: 'SEQUENTIAL', algorithm: 'SYSTEM', seed: 17 };
+    const payload = { patientCount: 5, workflow: 'SEQUENTIAL', processingProfile: 'HETEROGENEOUS', algorithm: 'SYSTEM', seed: 17 };
     const first = await request(app.getHttpServer()).post('/simulation/benchmark/run').send(payload).expect(201);
     const second = await request(app.getHttpServer()).post('/simulation/benchmark/run').send(payload).expect(201);
     expect(first.body).toEqual(second.body);
     expect(first.body.metrics.completedPatientCount).toBe(5);
+    expect(first.body).toMatchObject({ processingProfile: 'HETEROGENEOUS', scenarioId: expect.stringMatching(/^SCN-/) });
   });
 
   it('compares algorithms on one config', async () => {
     const response = await request(app.getHttpServer())
       .post('/simulation/benchmark/compare')
-      .send({ patientCount: 4, workflow: 'PARTIAL', algorithms: ['SYSTEM', 'ROUND_ROBIN'], seed: 9 })
+      .send({ patientCount: 4, workflow: 'PARTIAL', processingProfile: 'HOMOGENEOUS', algorithms: ['SYSTEM', 'ROUND_ROBIN'], seed: 9 })
       .expect(201);
     expect(response.body.results.map((result: { algorithm: string }) => result.algorithm)).toEqual(['SYSTEM', 'ROUND_ROBIN']);
-    expect(response.body.scenario).toMatchObject({ patientCount: 4, workflow: 'PARTIAL', seed: 9, schemaVersion: 1 });
+    expect(response.body.scenario).toMatchObject({ patientCount: 4, workflow: 'PARTIAL', processingProfile: 'HOMOGENEOUS', seed: 9, schemaVersion: 1, scenarioId: expect.stringMatching(/^SCN-/) });
+    expect(response.body.scenario.services).toHaveLength(5);
   });
 
   it.each([
