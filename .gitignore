@@ -30,3 +30,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Python generated files
+**/__pycache__/
+*.py[cod]
