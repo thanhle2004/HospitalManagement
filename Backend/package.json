@@ -33,6 +33,7 @@
     "test:system:isolated": "ts-node --transpile-only scripts/e2e/run-isolated-system-test.ts",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "benchmark:final": "ts-node --transpile-only src/modules/simulation/benchmark/benchmark-experiment.ts",
     "contract:generate": "ts-node --transpile-only scripts/contracts/generate-critical-contract.ts && openapi-typescript ../contracts/critical-staff.openapi.json -o ../Frontend/src/generated/critical-staff-contract.ts",
     "contract:check": "npm run contract:generate && git diff --exit-code -- ../contracts/critical-staff.openapi.json ../Frontend/src/generated/critical-staff-contract.ts"
   },

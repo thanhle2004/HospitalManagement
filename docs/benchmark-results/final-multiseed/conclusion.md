@@ -1,0 +1,5 @@
+# Conclusion
+
+> **Data provenance.** All statistics, tables, and figures in this reporting package were generated programmatically from the frozen 900-run dataset (`raw-results.csv`). Aggregates and paired comparisons were independently recomputed and matched the corresponding frozen CSV files; no values were manually transcribed.
+
+Across 30 paired deterministic seeds, SYSTEM and Shortest Queue were identical when expected processing times were homogeneous and when Sequential dependencies exposed only one eligible service. Under heterogeneous Independent and Partial Dependency workflows, SYSTEM produced modest mean-wait reductions of 0.58% and 0.71%, respectively, while P95 waiting decreased by the substantially larger amounts of 13.27% and 11.96%. The evaluated evidence therefore indicates that workload-aware routing's principal benefit was tail-wait mitigation when heterogeneous services and routing freedom occurred together. Other algorithms crossed over on individual metrics, so the results do not support universal superiority or optimality claims.

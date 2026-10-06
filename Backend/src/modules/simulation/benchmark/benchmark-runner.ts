@@ -11,7 +11,7 @@ import {
 type StepStatus = 'LOCKED' | 'READY' | 'QUEUED' | 'IN_SERVICE' | 'COMPLETED';
 interface StepState { status: StepStatus; readyAtMs: number; startedAtMs?: number; }
 interface PatientState { completedAtMs?: number; steps: Map<string, StepState>; }
-interface QueueItem { patientId: string; serviceId: string; readyAtMs: number; sequence: number; }
+interface QueueItem { patientId: string; serviceId: string; readyAtMs: number; queuedAtMs: number; sequence: number; }
 interface RoomState {
   id: string; serviceId: string; sortOrder: number; expectedAverageProcessTimeSeconds: number; queue: QueueItem[];
   active?: QueueItem & { endsAtMs: number }; busyTimeMs: number; patientsServed: number;
@@ -85,7 +85,13 @@ export function runBenchmarkScenario(
       const definition = scenario.steps[decision.selectedVisitStepId - 1];
       const step = state.steps.get(definition.id)!;
       const selected = rooms.find((room) => room.sortOrder === decision.selectedRoomId)!;
-      selected.queue.push({ patientId: patient.id, serviceId: definition.id, readyAtMs: step.readyAtMs, sequence: sequence++ });
+      selected.queue.push({
+        patientId: patient.id,
+        serviceId: definition.id,
+        readyAtMs: step.readyAtMs,
+        queuedAtMs: now,
+        sequence: sequence++,
+      });
       step.status = 'QUEUED';
       emit({ simTimeMs: now, type: 'QUEUED', patientId: patient.id, serviceId: definition.id, roomId: selected.id });
     }
@@ -98,7 +104,7 @@ export function runBenchmarkScenario(
       const item = room.queue.shift()!;
       const step = patients.get(item.patientId)!.steps.get(item.serviceId)!;
       step.status = 'IN_SERVICE'; step.startedAtMs = now;
-      waits.push(now - item.readyAtMs);
+      waits.push(now - item.queuedAtMs);
       const duration = patientById.get(item.patientId)!.serviceDurationsMs[item.serviceId];
       room.active = { ...item, endsAtMs: now + duration };
       emit({ simTimeMs: now, type: 'SERVICE_STARTED', patientId: item.patientId, serviceId: item.serviceId, roomId: room.id });

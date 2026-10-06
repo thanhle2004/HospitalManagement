@@ -34,7 +34,7 @@ test('shows reproducible scenario structure before running', async ({ page }) =>
   const scenario = page.getByTestId('scenario-structure');
   await expect(scenario).toContainText('Seed: 20261002');
   await expect(scenario).toContainText('Heterogeneous Services');
-  await expect(scenario).toContainText('A → B → C → D');
+  await expect(scenario).toContainText('A → B → C → D → E');
   await expect(scenario).toContainText('Expected processing time: 5.0 min');
   await expect(scenario).toContainText('ROOM_A_1, ROOM_A_2');
 });

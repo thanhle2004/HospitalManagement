@@ -1,0 +1,101 @@
+{
+  "experimentVersion": "final-multiseed-v1",
+  "generatedAt": "2026-10-05T16:56:36.180Z",
+  "patientCount": 100,
+  "seeds": [
+    20261001,
+    20261002,
+    20261003,
+    20261004,
+    20261005,
+    20261006,
+    20261007,
+    20261008,
+    20261009,
+    20261010,
+    20261011,
+    20261012,
+    20261013,
+    20261014,
+    20261015,
+    20261016,
+    20261017,
+    20261018,
+    20261019,
+    20261020,
+    20261021,
+    20261022,
+    20261023,
+    20261024,
+    20261025,
+    20261026,
+    20261027,
+    20261028,
+    20261029,
+    20261030
+  ],
+  "algorithms": [
+    "SYSTEM",
+    "SHORTEST_QUEUE",
+    "ROUND_ROBIN",
+    "LEAST_UTILISED",
+    "RANDOM"
+  ],
+  "profiles": [
+    "HOMOGENEOUS",
+    "HETEROGENEOUS"
+  ],
+  "workflows": {
+    "INDEPENDENT": [],
+    "SEQUENTIAL": [
+      [
+        "SERVICE_A",
+        "SERVICE_B"
+      ],
+      [
+        "SERVICE_B",
+        "SERVICE_C"
+      ],
+      [
+        "SERVICE_C",
+        "SERVICE_D"
+      ],
+      [
+        "SERVICE_D",
+        "SERVICE_E"
+      ]
+    ],
+    "PARTIAL": [
+      [
+        "SERVICE_A",
+        "SERVICE_C"
+      ],
+      [
+        "SERVICE_B",
+        "SERVICE_D"
+      ],
+      [
+        "SERVICE_C",
+        "SERVICE_E"
+      ],
+      [
+        "SERVICE_D",
+        "SERVICE_E"
+      ]
+    ]
+  },
+  "expectedProcessingTimeSeconds": {
+    "HOMOGENEOUS": 300,
+    "HETEROGENEOUS": {
+      "SERVICE_A": 300,
+      "SERVICE_B": 600,
+      "SERVICE_C": 420,
+      "SERVICE_D": 900,
+      "SERVICE_E": 240
+    }
+  },
+  "roomsPerService": 2,
+  "actualDurationRange": "uniform deterministic 80%-120% of expected time, keyed by seed/patient/service",
+  "stepWaitingTime": "SERVICE_STARTED - ROOM_QUEUE_ENTERED",
+  "confidenceInterval": "two-sided 95% Student-t interval for mean, df=n-1"
+}

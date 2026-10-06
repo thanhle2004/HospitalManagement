@@ -29,8 +29,8 @@ Actual duration là workload ẩn được materialize một lần cho mỗi `(s
 
 Patient đến cách nhau 10 giây virtual. Workflow giữ nguyên:
 
-- `INDEPENDENT`: A, B, C, D cùng sẵn sàng.
-- `SEQUENTIAL`: A → B → C → D.
+- `INDEPENDENT`: A, B, C, D, E cùng sẵn sàng.
+- `SEQUENTIAL`: A → B → C → D → E.
 - `PARTIAL`: A → C và B → D, sau đó C/D hội tụ tại E.
 
 Một patient chỉ có một queued/in-service step tại một thời điểm; khi nhiều step READY, chúng cùng xuất hiện trong candidate set. Điều này cho phép heterogeneous service characteristics ảnh hưởng objective mà không tạo room heterogeneity.
@@ -43,7 +43,7 @@ Mỗi run dùng strategy instance mới. Round Robin dùng stable service/step i
 
 ## Metric definitions
 
-- **Average/P95/Max Step Waiting Time**: phân phối trên step, `startedAt - readyAt`.
+- **Average/P95/Max Step Waiting Time**: phân phối trên step, `serviceStartedAt - roomQueueEnteredAt`. Trạng thái READY chỉ biểu thị dependency đã thỏa và không bắt đầu room waiting time.
 - **Average Length of Stay**: patient-level, `patient completion - patient arrival`.
 - **Throughput**: `completed patients / total simulated elapsed time`; đây là observed finite-run completion throughput, không phải steady-state hospital capacity.
 - **Room Utilization**: từng room `busy time / simulation elapsed time`; aggregate là trung bình các room. Đây là time-weighted result metric, độc lập với observation heuristic của Least Utilised.

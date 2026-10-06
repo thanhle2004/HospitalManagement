@@ -1,0 +1,229 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1120" viewBox="0 0 1800 1120">
+<rect width="100%" height="100%" fill="#FFFFFF"/>
+<text x="900.0" y="45.0" fill="#17202A" font-family="Arial,sans-serif" font-size="34" font-weight="700" text-anchor="middle" dominant-baseline="auto">Mean average step waiting time by algorithm</text>
+<text x="900.0" y="82.0" fill="#536471" font-family="Arial,sans-serif" font-size="21" font-weight="400" text-anchor="middle" dominant-baseline="auto">Means across 30 paired seeds; whiskers show 95% confidence intervals</text>
+<text x="400.0" y="145.0" fill="#17202A" font-family="Arial,sans-serif" font-size="22" font-weight="700" text-anchor="middle" dominant-baseline="auto">Homogeneous — Independent</text>
+<polyline points="175.0,535.0 625.0,535.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="165.0" y="535.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">0</text>
+<polyline points="175.0,448.8 625.0,448.8" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="165.0" y="448.8" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">500</text>
+<polyline points="175.0,362.5 625.0,362.5" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="165.0" y="362.5" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">1,000</text>
+<polyline points="175.0,276.2 625.0,276.2" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="165.0" y="276.2" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">1,500</text>
+<polyline points="175.0,190.0 625.0,190.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="165.0" y="190.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">2,000</text>
+<polyline points="175.0,190.0 175.0,535.0 625.0,535.0" fill="none" stroke="#17202A" stroke-width="2"/>
+<rect x="193.9" y="297.2" width="52.2" height="237.8" fill="#176B87"/>
+<polyline points="220.0,298.0 220.0,296.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="212.0,298.0 228.0,298.0" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="212.0,296.5 228.0,296.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="220.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">SYSTEM</text>
+<rect x="283.9" y="297.2" width="52.2" height="237.8" fill="#64CCC5"/>
+<polyline points="310.0,298.0 310.0,296.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="302.0,298.0 318.0,298.0" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="302.0,296.5 318.0,296.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="310.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Shortest</text>
+<rect x="373.9" y="289.3" width="52.2" height="245.7" fill="#F4A261"/>
+<polyline points="400.0,290.0 400.0,288.6" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="392.0,290.0 408.0,290.0" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="392.0,288.6 408.0,288.6" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="400.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Round R.</text>
+<rect x="463.9" y="237.5" width="52.2" height="297.5" fill="#8D6A9F"/>
+<polyline points="490.0,240.6 490.0,234.4" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="482.0,240.6 498.0,240.6" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="482.0,234.4 498.0,234.4" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="490.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Least U.</text>
+<rect x="553.9" y="267.8" width="52.2" height="267.2" fill="#D95D39"/>
+<polyline points="580.0,270.9 580.0,264.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="572.0,270.9 588.0,270.9" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="572.0,264.8 588.0,264.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="580.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Random</text>
+<text x="40.0" y="362.5" fill="#536471" font-family="Arial,sans-serif" font-size="18" font-weight="400" text-anchor="middle" dominant-baseline="middle">Seconds</text>
+<text x="965.0" y="145.0" fill="#17202A" font-family="Arial,sans-serif" font-size="22" font-weight="700" text-anchor="middle" dominant-baseline="auto">Homogeneous — Partial Dependency</text>
+<polyline points="740.0,535.0 1190.0,535.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="730.0" y="535.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">0</text>
+<polyline points="740.0,448.8 1190.0,448.8" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="730.0" y="448.8" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">500</text>
+<polyline points="740.0,362.5 1190.0,362.5" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="730.0" y="362.5" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">1,000</text>
+<polyline points="740.0,276.2 1190.0,276.2" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="730.0" y="276.2" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">1,500</text>
+<polyline points="740.0,190.0 1190.0,190.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="730.0" y="190.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">2,000</text>
+<polyline points="740.0,190.0 740.0,535.0 1190.0,535.0" fill="none" stroke="#17202A" stroke-width="2"/>
+<rect x="758.9" y="283.0" width="52.2" height="252.0" fill="#176B87"/>
+<polyline points="785.0,284.1 785.0,281.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="777.0,284.1 793.0,284.1" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="777.0,281.8 793.0,281.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="785.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">SYSTEM</text>
+<rect x="848.9" y="283.0" width="52.2" height="252.0" fill="#64CCC5"/>
+<polyline points="875.0,284.1 875.0,281.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="867.0,284.1 883.0,284.1" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="867.0,281.8 883.0,281.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="875.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Shortest</text>
+<rect x="938.9" y="275.8" width="52.2" height="259.2" fill="#F4A261"/>
+<polyline points="965.0,277.0 965.0,274.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="957.0,277.0 973.0,277.0" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="957.0,274.5 973.0,274.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="965.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Round R.</text>
+<rect x="1028.9" y="231.2" width="52.2" height="303.8" fill="#8D6A9F"/>
+<polyline points="1055.0,238.6 1055.0,223.7" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1047.0,238.6 1063.0,238.6" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1047.0,223.7 1063.0,223.7" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1055.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Least U.</text>
+<rect x="1118.9" y="233.7" width="52.2" height="301.3" fill="#D95D39"/>
+<polyline points="1145.0,237.2 1145.0,230.2" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1137.0,237.2 1153.0,237.2" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1137.0,230.2 1153.0,230.2" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1145.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Random</text>
+<text x="1530.0" y="145.0" fill="#17202A" font-family="Arial,sans-serif" font-size="22" font-weight="700" text-anchor="middle" dominant-baseline="auto">Homogeneous — Sequential</text>
+<polyline points="1305.0,535.0 1755.0,535.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1295.0" y="535.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">0</text>
+<polyline points="1305.0,448.8 1755.0,448.8" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1295.0" y="448.8" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">500</text>
+<polyline points="1305.0,362.5 1755.0,362.5" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1295.0" y="362.5" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">1,000</text>
+<polyline points="1305.0,276.2 1755.0,276.2" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1295.0" y="276.2" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">1,500</text>
+<polyline points="1305.0,190.0 1755.0,190.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1295.0" y="190.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">2,000</text>
+<polyline points="1305.0,190.0 1305.0,535.0 1755.0,535.0" fill="none" stroke="#17202A" stroke-width="2"/>
+<rect x="1323.9" y="275.9" width="52.2" height="259.1" fill="#176B87"/>
+<polyline points="1350.0,276.9 1350.0,274.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1342.0,276.9 1358.0,276.9" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1342.0,274.8 1358.0,274.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1350.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">SYSTEM</text>
+<rect x="1413.9" y="275.9" width="52.2" height="259.1" fill="#64CCC5"/>
+<polyline points="1440.0,276.9 1440.0,274.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1432.0,276.9 1448.0,276.9" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1432.0,274.8 1448.0,274.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1440.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Shortest</text>
+<rect x="1503.9" y="283.8" width="52.2" height="251.2" fill="#F4A261"/>
+<polyline points="1530.0,284.6 1530.0,283.0" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1522.0,284.6 1538.0,284.6" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1522.0,283.0 1538.0,283.0" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1530.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Round R.</text>
+<rect x="1593.9" y="233.8" width="52.2" height="301.2" fill="#8D6A9F"/>
+<polyline points="1620.0,237.7 1620.0,229.9" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1612.0,237.7 1628.0,237.7" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1612.0,229.9 1628.0,229.9" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1620.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Least U.</text>
+<rect x="1683.9" y="223.2" width="52.2" height="311.8" fill="#D95D39"/>
+<polyline points="1710.0,227.6 1710.0,218.9" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1702.0,227.6 1718.0,227.6" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1702.0,218.9 1718.0,218.9" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1710.0" y="548.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Random</text>
+<text x="400.0" y="615.0" fill="#17202A" font-family="Arial,sans-serif" font-size="22" font-weight="700" text-anchor="middle" dominant-baseline="auto">Heterogeneous — Independent</text>
+<polyline points="175.0,1005.0 625.0,1005.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="165.0" y="1005.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">0</text>
+<polyline points="175.0,918.8 625.0,918.8" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="165.0" y="918.8" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">1,300</text>
+<polyline points="175.0,832.5 625.0,832.5" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="165.0" y="832.5" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">2,600</text>
+<polyline points="175.0,746.2 625.0,746.2" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="165.0" y="746.2" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">3,900</text>
+<polyline points="175.0,660.0 625.0,660.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="165.0" y="660.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">5,200</text>
+<polyline points="175.0,660.0 175.0,1005.0 625.0,1005.0" fill="none" stroke="#17202A" stroke-width="2"/>
+<rect x="193.9" y="732.9" width="52.2" height="272.1" fill="#176B87"/>
+<polyline points="220.0,734.3 220.0,731.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="212.0,734.3 228.0,734.3" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="212.0,731.5 228.0,731.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="220.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">SYSTEM</text>
+<rect x="283.9" y="731.3" width="52.2" height="273.7" fill="#64CCC5"/>
+<polyline points="310.0,732.8 310.0,729.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="302.0,732.8 318.0,732.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="302.0,729.8 318.0,729.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="310.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Shortest</text>
+<rect x="373.9" y="725.7" width="52.2" height="279.3" fill="#F4A261"/>
+<polyline points="400.0,727.2 400.0,724.3" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="392.0,727.2 408.0,727.2" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="392.0,724.3 408.0,724.3" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="400.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Round R.</text>
+<rect x="463.9" y="694.3" width="52.2" height="310.7" fill="#8D6A9F"/>
+<polyline points="490.0,702.8 490.0,685.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="482.0,702.8 498.0,702.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="482.0,685.8 498.0,685.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="490.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Least U.</text>
+<rect x="553.9" y="721.5" width="52.2" height="283.5" fill="#D95D39"/>
+<polyline points="580.0,723.3 580.0,719.7" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="572.0,723.3 588.0,723.3" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="572.0,719.7 588.0,719.7" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="580.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Random</text>
+<text x="40.0" y="832.5" fill="#536471" font-family="Arial,sans-serif" font-size="18" font-weight="400" text-anchor="middle" dominant-baseline="middle">Seconds</text>
+<text x="965.0" y="615.0" fill="#17202A" font-family="Arial,sans-serif" font-size="22" font-weight="700" text-anchor="middle" dominant-baseline="auto">Heterogeneous — Partial Dependency</text>
+<polyline points="740.0,1005.0 1190.0,1005.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="730.0" y="1005.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">0</text>
+<polyline points="740.0,918.8 1190.0,918.8" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="730.0" y="918.8" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">1,250</text>
+<polyline points="740.0,832.5 1190.0,832.5" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="730.0" y="832.5" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">2,500</text>
+<polyline points="740.0,746.2 1190.0,746.2" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="730.0" y="746.2" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">3,750</text>
+<polyline points="740.0,660.0 1190.0,660.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="730.0" y="660.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">5,000</text>
+<polyline points="740.0,660.0 740.0,1005.0 1190.0,1005.0" fill="none" stroke="#17202A" stroke-width="2"/>
+<rect x="758.9" y="712.6" width="52.2" height="292.4" fill="#176B87"/>
+<polyline points="785.0,714.1 785.0,711.0" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="777.0,714.1 793.0,714.1" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="777.0,711.0 793.0,711.0" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="785.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">SYSTEM</text>
+<rect x="848.9" y="710.5" width="52.2" height="294.5" fill="#64CCC5"/>
+<polyline points="875.0,712.1 875.0,708.9" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="867.0,712.1 883.0,712.1" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="867.0,708.9 883.0,708.9" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="875.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Shortest</text>
+<rect x="938.9" y="702.9" width="52.2" height="302.1" fill="#F4A261"/>
+<polyline points="965.0,704.6 965.0,701.2" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="957.0,704.6 973.0,704.6" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="957.0,701.2 973.0,701.2" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="965.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Round R.</text>
+<rect x="1028.9" y="702.9" width="52.2" height="302.1" fill="#8D6A9F"/>
+<polyline points="1055.0,705.9 1055.0,699.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1047.0,705.9 1063.0,705.9" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1047.0,699.8 1063.0,699.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1055.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Least U.</text>
+<rect x="1118.9" y="699.5" width="52.2" height="305.5" fill="#D95D39"/>
+<polyline points="1145.0,701.9 1145.0,697.0" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1137.0,701.9 1153.0,701.9" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1137.0,697.0 1153.0,697.0" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1145.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Random</text>
+<text x="1530.0" y="615.0" fill="#17202A" font-family="Arial,sans-serif" font-size="22" font-weight="700" text-anchor="middle" dominant-baseline="auto">Heterogeneous — Sequential</text>
+<polyline points="1305.0,1005.0 1755.0,1005.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1295.0" y="1005.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">0</text>
+<polyline points="1305.0,918.8 1755.0,918.8" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1295.0" y="918.8" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">1,250</text>
+<polyline points="1305.0,832.5 1755.0,832.5" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1295.0" y="832.5" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">2,500</text>
+<polyline points="1305.0,746.2 1755.0,746.2" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1295.0" y="746.2" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">3,750</text>
+<polyline points="1305.0,660.0 1755.0,660.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1295.0" y="660.0" fill="#536471" font-family="Arial,sans-serif" font-size="17" font-weight="400" text-anchor="end" dominant-baseline="auto">5,000</text>
+<polyline points="1305.0,660.0 1305.0,1005.0 1755.0,1005.0" fill="none" stroke="#17202A" stroke-width="2"/>
+<rect x="1323.9" y="706.0" width="52.2" height="299.0" fill="#176B87"/>
+<polyline points="1350.0,707.6 1350.0,704.4" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1342.0,707.6 1358.0,707.6" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1342.0,704.4 1358.0,704.4" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1350.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">SYSTEM</text>
+<rect x="1413.9" y="706.0" width="52.2" height="299.0" fill="#64CCC5"/>
+<polyline points="1440.0,707.6 1440.0,704.4" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1432.0,707.6 1448.0,707.6" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1432.0,704.4 1448.0,704.4" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1440.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Shortest</text>
+<rect x="1503.9" y="706.1" width="52.2" height="298.9" fill="#F4A261"/>
+<polyline points="1530.0,707.8 1530.0,704.4" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1522.0,707.8 1538.0,707.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1522.0,704.4 1538.0,704.4" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1530.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Round R.</text>
+<rect x="1593.9" y="690.7" width="52.2" height="314.3" fill="#8D6A9F"/>
+<polyline points="1620.0,695.2 1620.0,686.3" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1612.0,695.2 1628.0,695.2" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1612.0,686.3 1628.0,686.3" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1620.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Least U.</text>
+<rect x="1683.9" y="694.1" width="52.2" height="310.9" fill="#D95D39"/>
+<polyline points="1710.0,697.3 1710.0,690.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1702.0,697.3 1718.0,697.3" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1702.0,690.8 1718.0,690.8" fill="none" stroke="#17202A" stroke-width="3"/>
+<text x="1710.0" y="1018.0" fill="#17202A" font-family="Arial,sans-serif" font-size="15" font-weight="400" text-anchor="middle" dominant-baseline="auto">Random</text>
+</svg>

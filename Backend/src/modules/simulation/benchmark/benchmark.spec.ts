@@ -14,8 +14,8 @@ function candidate(roomId: number, sortOrder: number, load: number, expectedSeco
 
 describe('pure routing algorithm benchmark', () => {
   it.each([
-    ['INDEPENDENT', [0, 0, 0, 0]],
-    ['SEQUENTIAL', [0, 1, 1, 1]],
+    ['INDEPENDENT', [0, 0, 0, 0, 0]],
+    ['SEQUENTIAL', [0, 1, 1, 1, 1]],
     ['PARTIAL', [0, 0, 1, 1, 2]],
   ] as Array<[WorkflowDependencyType, number[]]>)('materializes %s workflow dependencies', (workflow, counts) => {
     const scenario = generateBenchmarkScenario({ ...base, workflow });
@@ -160,5 +160,80 @@ describe('pure routing algorithm benchmark', () => {
     expect(metrics.averageLengthOfStayMs).toBeCloseTo(400_000 / 3);
     expect(metrics.throughputPerSimHour).toBe(54);
     expect(metrics.averageRoomUtilizationPct).toBe(75);
+  });
+
+  it('starts step waiting at room queue entry, not when the step becomes ready', () => {
+    const scenario = generateBenchmarkScenario({ ...base, patientCount: 1, workflow: 'INDEPENDENT' });
+    const result = runBenchmarkScenario(scenario, 'SYSTEM');
+    const patientEvents = result.events.filter((event) => event.patientId === 'P001');
+    const delayedStep = scenario.steps.find((step) => {
+      const ready = patientEvents.find((event) => event.type === 'STEP_READY' && event.serviceId === step.id);
+      const queued = patientEvents.find((event) => event.type === 'QUEUED' && event.serviceId === step.id);
+      return ready && queued && queued.simTimeMs > ready.simTimeMs;
+    })!;
+    const ready = patientEvents.find((event) => event.type === 'STEP_READY' && event.serviceId === delayedStep.id)!;
+    const queued = patientEvents.find((event) => event.type === 'QUEUED' && event.serviceId === delayedStep.id)!;
+    const started = patientEvents.find((event) => event.type === 'SERVICE_STARTED' && event.serviceId === delayedStep.id)!;
+
+    expect(ready.simTimeMs).toBe(0);
+    expect(queued.simTimeMs).toBeGreaterThan(ready.simTimeMs);
+    expect(started.simTimeMs - queued.simTimeMs).toBe(0);
+    expect(result.metrics.averageWaitingTimeMs).toBe(0);
+  });
+
+  it('keeps independent READY steps out of room queues until one is selected', () => {
+    const scenario = generateBenchmarkScenario({ ...base, patientCount: 1, workflow: 'INDEPENDENT' });
+    const result = runBenchmarkScenario(scenario, 'SYSTEM');
+    const events = result.events.filter((event) => event.patientId === 'P001');
+    expect(events.filter((event) => event.type === 'STEP_READY')).toHaveLength(5);
+
+    let queued = 0;
+    let inService = 0;
+    for (const event of events) {
+      if (event.type === 'QUEUED') queued += 1;
+      if (event.type === 'SERVICE_STARTED') { queued -= 1; inService += 1; }
+      if (event.type === 'SERVICE_COMPLETED') inService -= 1;
+      expect(queued).toBeLessThanOrEqual(1);
+      expect(inService).toBeLessThanOrEqual(1);
+      expect(queued + inService).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it.each(['INDEPENDENT', 'SEQUENTIAL', 'PARTIAL'] as const)(
+    'never has a patient in service in two rooms for %s',
+    (workflow) => {
+      const result = runBenchmarkScenario(generateBenchmarkScenario({ ...base, patientCount: 3, workflow }), 'SYSTEM');
+      for (const patientId of ['P001', 'P002', 'P003']) {
+        let inService = 0;
+        for (const event of result.events.filter((item) => item.patientId === patientId)) {
+          if (event.type === 'SERVICE_STARTED') inService += 1;
+          if (event.type === 'SERVICE_COMPLETED') inService -= 1;
+          expect(inService).toBeGreaterThanOrEqual(0);
+          expect(inService).toBeLessThanOrEqual(1);
+        }
+        expect(inService).toBe(0);
+      }
+    },
+  );
+
+  it('reconstructs every reported step wait from QUEUED and SERVICE_STARTED events', () => {
+    const result = runBenchmarkScenario(
+      generateBenchmarkScenario({ ...base, patientCount: 3, workflow: 'INDEPENDENT' }),
+      'SYSTEM',
+    );
+    const queueTimes = new Map<string, number>();
+    const reconstructed: number[] = [];
+    for (const event of result.events) {
+      const key = `${event.patientId}:${event.serviceId}`;
+      if (event.type === 'QUEUED') queueTimes.set(key, event.simTimeMs);
+      if (event.type === 'SERVICE_STARTED') {
+        expect(queueTimes.has(key)).toBe(true);
+        reconstructed.push(event.simTimeMs - queueTimes.get(key)!);
+      }
+    }
+    expect(reconstructed).toHaveLength(15);
+    expect(result.metrics.averageWaitingTimeMs).toBeCloseTo(
+      reconstructed.reduce((sum, wait) => sum + wait, 0) / reconstructed.length,
+    );
   });
 });

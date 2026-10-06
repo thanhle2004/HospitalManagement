@@ -17,8 +17,8 @@ const ALGORITHMS: Array<{ id: BenchmarkAlgorithm; label: string }> = [
   { id: "RANDOM", label: "Random (Seeded)" }, { id: "LEAST_UTILISED", label: "Least Utilised" },
 ];
 const WORKFLOWS: Array<{ id: BenchmarkWorkflow; label: string; description: string }> = [
-  { id: "INDEPENDENT", label: "Independent", description: "A, B, C, D ready independently" },
-  { id: "SEQUENTIAL", label: "Sequential", description: "A → B → C → D" },
+  { id: "INDEPENDENT", label: "Independent", description: "A, B, C, D, E ready independently" },
+  { id: "SEQUENTIAL", label: "Sequential", description: "A → B → C → D → E" },
   { id: "PARTIAL", label: "Partial Dependency", description: "A/B parallel, converge at E" },
 ];
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
@@ -29,7 +29,7 @@ const PROFILE_TIMES: Record<BenchmarkProcessingProfile, Record<string, number>> 
 
 function ScenarioStructure({ patientCount, workflow, processingProfile, seed, result }: { patientCount: number; workflow: BenchmarkWorkflow; processingProfile: BenchmarkProcessingProfile; seed: number; result?: BenchmarkRunResult }) {
   const workflowInfo = WORKFLOWS.find((item) => item.id === workflow)!;
-  const serviceIds = workflow === "PARTIAL" ? ["SERVICE_A", "SERVICE_B", "SERVICE_C", "SERVICE_D", "SERVICE_E"] : ["SERVICE_A", "SERVICE_B", "SERVICE_C", "SERVICE_D"];
+  const serviceIds = ["SERVICE_A", "SERVICE_B", "SERVICE_C", "SERVICE_D", "SERVICE_E"];
   const services = result?.services ?? serviceIds.map((id) => ({ id, dependencies: [], expectedAverageProcessTimeSeconds: PROFILE_TIMES[processingProfile][id], rooms: [`ROOM_${id.at(-1)}_1`, `ROOM_${id.at(-1)}_2`] }));
   return <Card data-testid="scenario-structure"><CardHeader><CardTitle>Scenario Structure</CardTitle></CardHeader><CardContent className="space-y-4 text-sm"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"><span><b>Patients:</b> {patientCount}</span><span><b>Workflow:</b> {workflowInfo.label}</span><span><b>Seed:</b> {seed}</span><span><b>Profile:</b> {processingProfile === "HOMOGENEOUS" ? "Homogeneous Services" : "Heterogeneous Services"}</span>{result && <span><b>Scenario:</b> {result.scenarioId}</span>}</div><div><b>Workflow graph:</b> <span className="ml-2 font-mono">{workflowInfo.description}</span></div><div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">{services.map((service) => <div className="rounded border p-3" key={service.id}><p className="font-medium">{service.id.replace("SERVICE_", "Service ")}</p><p>Expected processing time: {(service.expectedAverageProcessTimeSeconds / 60).toFixed(1)} min</p><p className="text-slate-500">Rooms: {service.rooms.join(", ")}</p></div>)}</div></CardContent></Card>;
 }

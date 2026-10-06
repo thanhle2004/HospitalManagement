@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="980" viewBox="0 0 1800 980">
+<rect width="100%" height="100%" fill="#FFFFFF"/>
+<text x="900.0" y="45.0" fill="#17202A" font-family="Arial,sans-serif" font-size="34" font-weight="700" text-anchor="middle" dominant-baseline="auto">SYSTEM vs Shortest Queue: paired P95 wait improvement</text>
+<text x="900.0" y="82.0" fill="#536471" font-family="Arial,sans-serif" font-size="21" font-weight="400" text-anchor="middle" dominant-baseline="auto">Positive differences favor SYSTEM; whiskers show 95% confidence intervals</text>
+<polyline points="450.0,150.0 450.0,840.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="450.0" y="862.0" fill="#536471" font-family="Arial,sans-serif" font-size="19" font-weight="400" text-anchor="middle" dominant-baseline="auto">0</text>
+<polyline points="688.0,150.0 688.0,840.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="688.0" y="862.0" fill="#536471" font-family="Arial,sans-serif" font-size="19" font-weight="400" text-anchor="middle" dominant-baseline="auto">535</text>
+<polyline points="926.0,150.0 926.0,840.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="926.0" y="862.0" fill="#536471" font-family="Arial,sans-serif" font-size="19" font-weight="400" text-anchor="middle" dominant-baseline="auto">1,070</text>
+<polyline points="1164.0,150.0 1164.0,840.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1164.0" y="862.0" fill="#536471" font-family="Arial,sans-serif" font-size="19" font-weight="400" text-anchor="middle" dominant-baseline="auto">1,606</text>
+<polyline points="1402.0,150.0 1402.0,840.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1402.0" y="862.0" fill="#536471" font-family="Arial,sans-serif" font-size="19" font-weight="400" text-anchor="middle" dominant-baseline="auto">2,141</text>
+<polyline points="1640.0,150.0 1640.0,840.0" fill="none" stroke="#D8DEE4" stroke-width="1"/>
+<text x="1640.0" y="862.0" fill="#536471" font-family="Arial,sans-serif" font-size="19" font-weight="400" text-anchor="middle" dominant-baseline="auto">2,676</text>
+<polyline points="450.0,150.0 450.0,840.0 1640.0,840.0" fill="none" stroke="#17202A" stroke-width="2"/>
+<text x="426.0" y="207.5" fill="#17202A" font-family="Arial,sans-serif" font-size="21" font-weight="400" text-anchor="end" dominant-baseline="auto">Homogeneous — Independent</text>
+<polyline points="450.0,207.5 450.0,207.5" fill="none" stroke="#176B87" stroke-width="6"/>
+<polyline points="450.0,198.5 450.0,216.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="450.0,198.5 450.0,216.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<rect x="442.0" y="199.5" width="16.0" height="16.0" fill="#176B87"/>
+<text x="466.0" y="207.5" fill="#17202A" font-family="Arial,sans-serif" font-size="19" font-weight="700" text-anchor="start" dominant-baseline="auto">0.00%</text>
+<text x="426.0" y="322.5" fill="#17202A" font-family="Arial,sans-serif" font-size="21" font-weight="400" text-anchor="end" dominant-baseline="auto">Homogeneous — Partial Dependency</text>
+<polyline points="450.0,322.5 450.0,322.5" fill="none" stroke="#176B87" stroke-width="6"/>
+<polyline points="450.0,313.5 450.0,331.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="450.0,313.5 450.0,331.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<rect x="442.0" y="314.5" width="16.0" height="16.0" fill="#176B87"/>
+<text x="466.0" y="322.5" fill="#17202A" font-family="Arial,sans-serif" font-size="19" font-weight="700" text-anchor="start" dominant-baseline="auto">0.00%</text>
+<text x="426.0" y="437.5" fill="#17202A" font-family="Arial,sans-serif" font-size="21" font-weight="400" text-anchor="end" dominant-baseline="auto">Homogeneous — Sequential</text>
+<polyline points="450.0,437.5 450.0,437.5" fill="none" stroke="#176B87" stroke-width="6"/>
+<polyline points="450.0,428.5 450.0,446.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="450.0,428.5 450.0,446.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<rect x="442.0" y="429.5" width="16.0" height="16.0" fill="#176B87"/>
+<text x="466.0" y="437.5" fill="#17202A" font-family="Arial,sans-serif" font-size="19" font-weight="700" text-anchor="start" dominant-baseline="auto">0.00%</text>
+<text x="426.0" y="552.5" fill="#17202A" font-family="Arial,sans-serif" font-size="21" font-weight="400" text-anchor="end" dominant-baseline="auto">Heterogeneous — Independent</text>
+<polyline points="1278.3,552.5 1458.5,552.5" fill="none" stroke="#D95D39" stroke-width="6"/>
+<polyline points="1278.3,543.5 1278.3,561.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1458.5,543.5 1458.5,561.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<rect x="1360.4" y="544.5" width="16.0" height="16.0" fill="#D95D39"/>
+<text x="1474.5" y="552.5" fill="#17202A" font-family="Arial,sans-serif" font-size="19" font-weight="700" text-anchor="start" dominant-baseline="auto">13.27%</text>
+<text x="426.0" y="667.5" fill="#17202A" font-family="Arial,sans-serif" font-size="21" font-weight="400" text-anchor="end" dominant-baseline="auto">Heterogeneous — Partial Dependency</text>
+<polyline points="1148.7,667.5 1373.9,667.5" fill="none" stroke="#D95D39" stroke-width="6"/>
+<polyline points="1148.7,658.5 1148.7,676.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="1373.9,658.5 1373.9,676.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<rect x="1253.3" y="659.5" width="16.0" height="16.0" fill="#D95D39"/>
+<text x="1389.9" y="667.5" fill="#17202A" font-family="Arial,sans-serif" font-size="19" font-weight="700" text-anchor="start" dominant-baseline="auto">11.96%</text>
+<text x="426.0" y="782.5" fill="#17202A" font-family="Arial,sans-serif" font-size="21" font-weight="400" text-anchor="end" dominant-baseline="auto">Heterogeneous — Sequential</text>
+<polyline points="450.0,782.5 450.0,782.5" fill="none" stroke="#D95D39" stroke-width="6"/>
+<polyline points="450.0,773.5 450.0,791.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<polyline points="450.0,773.5 450.0,791.5" fill="none" stroke="#17202A" stroke-width="3"/>
+<rect x="442.0" y="774.5" width="16.0" height="16.0" fill="#D95D39"/>
+<text x="466.0" y="782.5" fill="#17202A" font-family="Arial,sans-serif" font-size="19" font-weight="700" text-anchor="start" dominant-baseline="auto">0.00%</text>
+<text x="1045.0" y="920.0" fill="#17202A" font-family="Arial,sans-serif" font-size="22" font-weight="400" text-anchor="middle" dominant-baseline="auto">Paired P95 waiting-time difference (seconds)</text>
+</svg>

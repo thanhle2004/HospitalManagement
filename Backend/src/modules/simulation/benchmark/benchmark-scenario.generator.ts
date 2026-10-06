@@ -19,12 +19,13 @@ export const HETEROGENEOUS_EXPECTED_SECONDS: Record<string, number> = {
 type WorkflowStepTemplate = Pick<BenchmarkStepDefinition, 'id' | 'dependencies'>;
 
 const WORKFLOWS: Record<WorkflowDependencyType, WorkflowStepTemplate[]> = {
-  INDEPENDENT: ['A', 'B', 'C', 'D'].map((id) => ({ id: `SERVICE_${id}`, dependencies: [] })),
+  INDEPENDENT: ['A', 'B', 'C', 'D', 'E'].map((id) => ({ id: `SERVICE_${id}`, dependencies: [] })),
   SEQUENTIAL: [
     { id: 'SERVICE_A', dependencies: [] },
     { id: 'SERVICE_B', dependencies: ['SERVICE_A'] },
     { id: 'SERVICE_C', dependencies: ['SERVICE_B'] },
     { id: 'SERVICE_D', dependencies: ['SERVICE_C'] },
+    { id: 'SERVICE_E', dependencies: ['SERVICE_D'] },
   ],
   PARTIAL: [
     { id: 'SERVICE_A', dependencies: [] },
